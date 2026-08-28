@@ -1,0 +1,16 @@
+### Create an appointment
+POST http://localhost:4004/api/appointments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "businessId": "business-123",
+  "customerId": "customer-123",
+  "staffId": "staff-123",
+  "serviceId": "service-123",
+  "calendarId": "calendar-123",
+  "startTime": "2026-08-20T15:00:00",
+  "endTime": "2026-08-20T15:30:00",
+  "status": "CONFIRMED",
+  "notes": "Example appointment"
+}

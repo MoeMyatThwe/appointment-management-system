@@ -1,0 +1,3 @@
+### Get appointments
+GET http://localhost:4004/api/appointments
+Authorization: Bearer {{token}}

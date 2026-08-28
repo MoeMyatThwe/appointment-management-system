@@ -1,0 +1,339 @@
+@import "tailwindcss";
+
+:root {
+  --action-color: #71809f;
+  --action-hover-color: #8492ad;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #e7ebf3;
+  background: #0b1020;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 8% 0%, rgb(76 96 139 / 18%), transparent 32rem),
+    linear-gradient(135deg, #0b1020 0%, #10182b 52%, #0c1222 100%);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Keep the workspace calm and consistent while allowing the page content to breathe. */
+input,
+select,
+textarea {
+  border-color: rgb(148 163 184 / 52%);
+  background-color: rgb(20 29 50 / 72%);
+  color: #e7ebf3;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgb(139 157 232 / 85%);
+  box-shadow: 0 0 0 4px rgb(165 180 252 / 24%);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #e7ebf3 !important;
+  -webkit-box-shadow: 0 0 0 1000px rgb(20 29 50 / 72%) inset !important;
+  box-shadow: 0 0 0 1000px rgb(20 29 50 / 72%) inset !important;
+  caret-color: #e7ebf3;
+}
+
+[class*="bg-slate-50"]:-webkit-autofill,
+[class*="bg-slate-50"]:-webkit-autofill:hover,
+[class*="bg-slate-50"]:-webkit-autofill:focus,
+[class*="bg-slate-50"]:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px rgb(24 33 55 / 46%) inset !important;
+  box-shadow: 0 0 0 1000px rgb(24 33 55 / 46%) inset !important;
+}
+
+[class*="bg-white"] {
+  background-color: rgb(13 19 34 / 62%) !important;
+  backdrop-filter: blur(24px) saturate(120%);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 24%);
+}
+
+[class*="bg-slate-50"] {
+  background-color: rgb(24 33 55 / 46%) !important;
+}
+
+[class*="bg-slate-900"],
+[class*="bg-slate-950"] {
+  background-color: rgb(5 9 20 / 72%) !important;
+  backdrop-filter: blur(24px) saturate(120%);
+}
+
+[class*="rounded-2xl"],
+[class*="rounded-3xl"] {
+  border-color: rgb(125 145 184 / 8%);
+  backdrop-filter: blur(24px) saturate(120%);
+  background-image: linear-gradient(135deg, rgb(255 255 255 / 6%), transparent 60%);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 22%);
+}
+
+[class*="bg-indigo-600"],
+[class*="bg-indigo-700"] {
+  background-color: rgb(52 66 99 / 34%) !important;
+  color: #e7ebf3 !important;
+  box-shadow: 0 14px 36px rgb(0 0 0 / 22%);
+}
+
+button[class*="bg-indigo-600"],
+button[class*="bg-indigo-700"] {
+  background-color: var(--action-color) !important;
+  color: #0b1020 !important;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 28%);
+}
+
+[class*="bg-indigo-600"]:hover,
+[class*="bg-indigo-700"]:hover {
+  background-color: rgb(73 88 125 / 46%) !important;
+}
+
+button[class*="bg-indigo-600"]:hover,
+button[class*="bg-indigo-700"]:hover {
+  background-color: var(--action-hover-color) !important;
+}
+
+[class*="text-indigo-600"] {
+  color: #aebbd2 !important;
+}
+
+[class*="border-indigo-"] {
+  border-color: rgb(137 155 190 / 45%) !important;
+}
+
+[class*="text-slate-900"] { color: #f3f6fb !important; }
+[class*="text-slate-800"] { color: #e7ebf3 !important; }
+[class*="text-slate-700"] { color: #d3d9e5 !important; }
+[class*="text-slate-600"] { color: #b8c1d2 !important; }
+[class*="text-slate-500"] { color: #95a1b7 !important; }
+[class*="text-slate-400"] { color: #8491a8 !important; }
+[class*="border-slate-"] { border-color: rgb(125 145 184 / 16%) !important; }
+[class*="ring-"] { --tw-ring-color: rgb(125 145 184 / 14%) !important; }
+[class*="bg-indigo-100"] { background-color: rgb(113 128 159 / 24%) !important; }
+[class*="text-indigo-700"] { color: #c4cddd !important; }
+
+.simple-form {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.simple-form input,
+.simple-form select,
+.simple-form textarea {
+  border: 1px solid #d8deea;
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: rgb(22 31 53 / 60%);
+}
+
+.simple-form button {
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 15px;
+  color: #fff;
+  background: #3157d5;
+}
+
+select,
+.simple-form select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #141d32 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2371809f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-position: right 0.9rem center !important;
+  background-repeat: no-repeat !important;
+  background-size: 1.15rem !important;
+  border-color: rgb(113 128 159 / 55%) !important;
+  color: #f8fafc !important;
+  padding-right: 2.75rem !important;
+}
+
+select:hover,
+.simple-form select:hover {
+  border-color: var(--action-hover-color) !important;
+}
+
+select:focus,
+.simple-form select:focus {
+  border-color: var(--action-color) !important;
+  box-shadow: 0 0 0 4px rgb(113 128 159 / 28%) !important;
+  outline: none;
+}
+
+select option,
+.simple-form select option {
+  background: #18234a;
+  color: #f8fafc;
+}
+
+select option:checked,
+.simple-form select option:checked {
+  background: var(--action-color);
+  color: #ffffff;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid #e4e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  background: rgb(22 31 53 / 60%);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgb(23 32 51 / 4%);
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.schedora-landing {
+  --schedora-bg: #0b1020;
+  --schedora-surface: #111a30;
+  --schedora-surface-soft: #15213a;
+  --schedora-border: rgb(145 161 194 / 18%);
+  --schedora-text: #f5f7fb;
+  --schedora-muted: #9aa7bd;
+  --schedora-accent: var(--action-color);
+  min-height: 100vh;
+  overflow: hidden;
+  background: radial-gradient(circle at 80% -10%, rgb(113 128 159 / 18%), transparent 32rem), var(--schedora-bg);
+  color: var(--schedora-text);
+}
+
+.schedora-container { width: min(1160px, calc(100% - 40px)); margin: 0 auto; }
+.schedora-header { position: relative; z-index: 2; border-bottom: 1px solid var(--schedora-border); background: rgb(11 16 32 / 82%); backdrop-filter: blur(18px); }
+.schedora-header-inner, .schedora-footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 76px; }
+.schedora-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--schedora-text); font-size: 1.1rem; font-weight: 750; letter-spacing: -.02em; text-decoration: none; }
+.schedora-brand-mark { display: grid; height: 34px; width: 34px; place-items: center; border-radius: 11px; background: var(--schedora-accent); color: var(--schedora-bg); font-weight: 850; }
+.schedora-nav { display: flex; gap: 28px; margin-left: auto; }
+.schedora-nav a, .schedora-text-button { color: var(--schedora-muted); font-size: .9rem; font-weight: 600; text-decoration: none; transition: color .2s ease; }
+.schedora-nav a:hover, .schedora-text-button:hover { color: var(--schedora-text); }
+.schedora-header-actions, .schedora-placeholder-actions { display: flex; align-items: center; gap: 12px; }
+.schedora-button, .schedora-outline-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 12px; padding: 13px 18px; font-weight: 700; text-decoration: none; }
+.schedora-button { border: 1px solid var(--schedora-accent); background: var(--schedora-accent); color: var(--schedora-bg); }
+.schedora-button:hover { background: var(--action-hover-color); border-color: var(--action-hover-color); }
+.schedora-button-small { padding: 10px 14px; font-size: .86rem; }
+.schedora-outline-button { border: 1px solid var(--schedora-border); color: var(--schedora-text); }
+.schedora-section { padding: 100px 0; }
+.schedora-hero-section { padding: 116px 0 110px; }
+.schedora-hero-grid, .schedora-two-column { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 72px; }
+.schedora-hero-copy h1 { max-width: 620px; margin: 18px 0 22px; font-size: clamp(2.8rem, 6vw, 5.3rem); line-height: .98; letter-spacing: -.065em; }
+.schedora-hero-copy > p:not(.schedora-eyebrow):not(.schedora-hero-note) { max-width: 540px; color: var(--schedora-muted); font-size: 1.1rem; line-height: 1.8; }
+.schedora-hero-badge { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 22px; border: 1px solid var(--schedora-border); border-radius: 999px; padding: 8px 12px; color: #c9d2e2; font-size: .75rem; font-weight: 700; }
+.schedora-hero-badge span { height: 7px; width: 7px; border-radius: 50%; background: var(--schedora-accent); box-shadow: 0 0 0 4px rgb(113 128 159 / 14%); }
+.schedora-eyebrow { margin: 0; color: #c2cada; font-size: .75rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.schedora-placeholder-actions { margin-top: 30px; }
+.schedora-hero-note { margin: 18px 0 0; color: #71809f; font-size: .8rem; }
+.schedora-image-placeholder { display: flex; min-height: 280px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed rgb(172 186 215 / 32%); border-radius: 24px; background: linear-gradient(145deg, rgb(21 33 58 / 90%), rgb(15 24 44 / 80%)); color: #c2cada; text-align: center; box-shadow: 0 28px 80px rgb(0 0 0 / 22%); }
+.schedora-image-placeholder small { color: var(--schedora-muted); font-size: .75rem; }
+.schedora-image-placeholder-icon { display: grid; height: 44px; width: 44px; place-items: center; border: 1px solid rgb(172 186 215 / 28%); border-radius: 14px; color: var(--schedora-accent); font-size: 1.6rem; }
+.schedora-hero-image { min-height: 470px; }
+.schedora-trust-strip { border-block: 1px solid var(--schedora-border); background: rgb(17 26 48 / 62%); }
+.schedora-trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 23px 0; }
+.schedora-trust-grid span { color: #c2cada; font-size: .85rem; font-weight: 650; text-align: center; }
+.schedora-muted-section { background: rgb(17 26 48 / 55%); }
+.schedora-section-heading { max-width: 650px; }
+.schedora-section-heading-center { margin-inline: auto; text-align: center; }
+.schedora-section-heading h2 { margin: 14px 0 14px; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.05; letter-spacing: -.045em; }
+.schedora-section-heading > p:last-child { margin: 0; color: var(--schedora-muted); line-height: 1.75; }
+.schedora-feature-grid, .schedora-steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 48px; }
+.schedora-feature-card, .schedora-step-card { border: 1px solid var(--schedora-border); border-radius: 20px; background: rgb(21 33 58 / 62%); padding: 24px; }
+.schedora-card-number, .schedora-step-card > span { color: #aebbd2; font-size: .78rem; font-weight: 800; letter-spacing: .1em; }
+.schedora-feature-icon { display: grid; height: 44px; width: 44px; margin-top: 38px; place-items: center; border-radius: 13px; background: rgb(113 128 159 / 18%); color: #d3dbea; }
+.schedora-feature-card h3, .schedora-step-card h3 { margin: 18px 0 8px; font-size: 1.1rem; }
+.schedora-feature-card p, .schedora-step-card p { margin: 0; color: var(--schedora-muted); font-size: .9rem; line-height: 1.7; }
+.schedora-benefit-list { display: grid; gap: 14px; margin-top: 30px; }
+.schedora-benefit-item { display: flex; align-items: center; gap: 11px; color: #d8deea; font-size: .95rem; font-weight: 650; }
+.schedora-benefit-item svg { flex: 0 0 auto; color: var(--schedora-accent); }
+.schedora-showcase-grid { display: grid; grid-template-columns: 1.3fr .7fr; gap: 18px; margin-top: 48px; }
+.schedora-showcase-large { grid-row: span 2; min-height: 520px; }
+.schedora-showcase-grid > :not(.schedora-showcase-large) { min-height: 251px; }
+.schedora-faq-section { min-height: 360px; }
+.schedora-faq-list { max-width: 820px; margin: 48px auto 0; border-top: 1px solid var(--schedora-border); }
+.schedora-faq-item { border-bottom: 1px solid var(--schedora-border); }
+.schedora-faq-question { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 22px; border: 0; background: transparent; padding: 22px 4px; color: var(--schedora-text); font-size: 1rem; font-weight: 700; text-align: left; }
+.schedora-faq-question:hover { color: #d5dcea; }
+.schedora-faq-toggle { display: grid; height: 30px; width: 30px; flex: 0 0 auto; place-items: center; border: 1px solid rgb(172 186 215 / 32%); border-radius: 50%; color: var(--schedora-accent); font-size: 1.25rem; font-weight: 400; line-height: 1; }
+.schedora-faq-answer { max-width: 720px; margin: -4px 58px 22px 4px; color: var(--schedora-muted); font-size: .92rem; line-height: 1.75; }
+.schedora-faq-item-open .schedora-faq-question { color: #d5dcea; }
+.schedora-cta-section { padding: 74px 0; background: linear-gradient(120deg, rgb(113 128 159 / 20%), rgb(21 33 58 / 82%)); border-block: 1px solid var(--schedora-border); }
+.schedora-cta-inner { display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+.schedora-cta-inner h2 { max-width: 680px; margin: 12px 0 0; font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.045em; }
+.schedora-footer { background: #080d19; }
+.schedora-footer-inner { min-height: 92px; }
+.schedora-footer-inner p, .schedora-footer-inner > span { margin: 0; color: var(--schedora-muted); font-size: .8rem; }
+
+@media (max-width: 800px) {
+  .schedora-nav { display: none; }
+  .schedora-hero-grid, .schedora-two-column { grid-template-columns: 1fr; gap: 42px; }
+  .schedora-hero-section { padding: 78px 0 76px; }
+  .schedora-section { padding: 76px 0; }
+  .schedora-trust-grid { grid-template-columns: repeat(2, 1fr); }
+  .schedora-feature-grid, .schedora-steps-grid { grid-template-columns: 1fr; }
+  .schedora-showcase-grid { grid-template-columns: 1fr; }
+  .schedora-showcase-large { grid-row: auto; min-height: 360px; }
+  .schedora-showcase-grid > :not(.schedora-showcase-large) { min-height: 230px; }
+  .schedora-cta-inner, .schedora-footer-inner { align-items: flex-start; flex-direction: column; padding-block: 28px; }
+}
+
+@media (max-width: 480px) {
+  .schedora-container { width: min(100% - 28px, 1160px); }
+  .schedora-header-actions .schedora-text-button { display: none; }
+  .schedora-content-placeholder h1 { font-size: 3.25rem; }
+  .schedora-placeholder-actions { align-items: stretch; flex-direction: column; }
+  .schedora-placeholder-actions > * { width: 100%; }
+}

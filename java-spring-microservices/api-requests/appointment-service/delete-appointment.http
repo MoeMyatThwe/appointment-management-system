@@ -1,0 +1,3 @@
+### Delete an appointment
+DELETE http://localhost:4004/api/appointments/{{appointmentId}}
+Authorization: Bearer {{token}}

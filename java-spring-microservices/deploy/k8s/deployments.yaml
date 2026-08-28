@@ -1,0 +1,239 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: auth-service }
+  template:
+    metadata:
+      labels: { app: auth-service }
+    spec:
+      containers:
+        - name: auth-service
+          image: ghcr.io/replace-with-your-owner/appointment-auth-service:replace-with-release-tag
+          ports: [{ containerPort: 4005 }]
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            - name: SPRING_DATASOURCE_URL
+              valueFrom: { configMapKeyRef: { name: appointment-config, key: AUTH_DB_URL } }
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: appointment-production-secrets, key: postgres-username } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: appointment-production-secrets, key: postgres-password } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: appointment-production-secrets, key: jwt-secret } }
+          readinessProbe: { httpGet: { path: /actuator/health, port: 4005 }, initialDelaySeconds: 20, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /actuator/health, port: 4005 }, initialDelaySeconds: 40, periodSeconds: 20 }
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: 500m, memory: 512Mi } }
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+spec:
+  selector: { app: auth-service }
+  ports: [{ name: http, port: 4005, targetPort: 4005 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appointment-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: appointment-service }
+  template:
+    metadata:
+      labels: { app: appointment-service }
+    spec:
+      containers:
+        - name: appointment-service
+          image: ghcr.io/replace-with-your-owner/appointment-appointment-service:replace-with-release-tag
+          ports: [{ containerPort: 4000 }]
+          env:
+            - { name: SPRING_PROFILES_ACTIVE, value: prod }
+            - { name: SPRING_DATASOURCE_URL, valueFrom: { configMapKeyRef: { name: appointment-config, key: APPOINTMENT_DB_URL } } }
+            - { name: SPRING_DATASOURCE_USERNAME, valueFrom: { secretKeyRef: { name: appointment-production-secrets, key: postgres-username } } }
+            - { name: SPRING_DATASOURCE_PASSWORD, valueFrom: { secretKeyRef: { name: appointment-production-secrets, key: postgres-password } } }
+            - { name: SPRING_KAFKA_BOOTSTRAP_SERVERS, valueFrom: { configMapKeyRef: { name: appointment-config, key: KAFKA_BOOTSTRAP_SERVERS } } }
+            - { name: BILLING_SERVICE_ADDRESS, value: billing-service }
+            - { name: BILLING_SERVICE_GRPC_PORT, value: "9001" }
+          readinessProbe: { httpGet: { path: /actuator/health, port: 4000 }, initialDelaySeconds: 30, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /actuator/health, port: 4000 }, initialDelaySeconds: 50, periodSeconds: 20 }
+          resources: { requests: { cpu: 200m, memory: 384Mi }, limits: { cpu: 1000m, memory: 768Mi } }
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appointment-service
+spec:
+  selector: { app: appointment-service }
+  ports: [{ name: http, port: 4000, targetPort: 4000 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: billing-service }
+  template:
+    metadata:
+      labels: { app: billing-service }
+    spec:
+      containers:
+        - name: billing-service
+          image: ghcr.io/replace-with-your-owner/appointment-billing-service:replace-with-release-tag
+          ports:
+            - { name: http, containerPort: 4001 }
+            - { name: grpc, containerPort: 9001 }
+          readinessProbe: { httpGet: { path: /actuator/health, port: 4001 }, initialDelaySeconds: 20, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /actuator/health, port: 4001 }, initialDelaySeconds: 40, periodSeconds: 20 }
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: 500m, memory: 512Mi } }
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service
+spec:
+  selector: { app: billing-service }
+  ports:
+    - { name: http, port: 4001, targetPort: 4001 }
+    - { name: grpc, port: 9001, targetPort: 9001 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: analytics-service }
+  template:
+    metadata:
+      labels: { app: analytics-service }
+    spec:
+      containers:
+        - name: analytics-service
+          image: ghcr.io/replace-with-your-owner/appointment-analytics-service:replace-with-release-tag
+          ports: [{ containerPort: 4002 }]
+          env:
+            - { name: SERVER_PORT, value: "4002" }
+            - { name: SPRING_KAFKA_BOOTSTRAP_SERVERS, valueFrom: { configMapKeyRef: { name: appointment-config, key: KAFKA_BOOTSTRAP_SERVERS } } }
+          readinessProbe: { httpGet: { path: /actuator/health, port: 4002 }, initialDelaySeconds: 20, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /actuator/health, port: 4002 }, initialDelaySeconds: 40, periodSeconds: 20 }
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: 500m, memory: 512Mi } }
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-service
+spec:
+  selector: { app: analytics-service }
+  ports: [{ name: http, port: 4002, targetPort: 4002 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: notification-service }
+  template:
+    metadata:
+      labels: { app: notification-service }
+    spec:
+      containers:
+        - name: notification-service
+          image: ghcr.io/replace-with-your-owner/appointment-notification-service:replace-with-release-tag
+          ports: [{ containerPort: 4003 }]
+          env:
+            - { name: SERVER_PORT, value: "4003" }
+            - { name: SPRING_KAFKA_BOOTSTRAP_SERVERS, valueFrom: { configMapKeyRef: { name: appointment-config, key: KAFKA_BOOTSTRAP_SERVERS } } }
+            - { name: NOTIFICATION_EMAIL_PROVIDER, valueFrom: { configMapKeyRef: { name: appointment-config, key: EMAIL_PROVIDER } } }
+            - { name: NOTIFICATION_SMS_PROVIDER, valueFrom: { configMapKeyRef: { name: appointment-config, key: SMS_PROVIDER } } }
+            - { name: NOTIFICATION_CALENDAR_PROVIDER, valueFrom: { configMapKeyRef: { name: appointment-config, key: CALENDAR_PROVIDER } } }
+            - { name: NOTIFICATION_REMINDER_MINUTES_BEFORE, valueFrom: { configMapKeyRef: { name: appointment-config, key: REMINDER_MINUTES_BEFORE } } }
+          readinessProbe: { httpGet: { path: /actuator/health, port: 4003 }, initialDelaySeconds: 20, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /actuator/health, port: 4003 }, initialDelaySeconds: 40, periodSeconds: 20 }
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: 500m, memory: 512Mi } }
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  selector: { app: notification-service }
+  ports: [{ name: http, port: 4003, targetPort: 4003 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: api-gateway }
+  template:
+    metadata:
+      labels: { app: api-gateway }
+    spec:
+      containers:
+        - name: api-gateway
+          image: ghcr.io/replace-with-your-owner/appointment-api-gateway:replace-with-release-tag
+          ports: [{ containerPort: 4004 }]
+          env:
+            - { name: AUTH_SERVICE_URL, value: http://auth-service:4005 }
+            - { name: APPOINTMENT_SERVICE_URL, value: http://appointment-service:4000 }
+            - { name: CORS_ALLOWED_ORIGINS, valueFrom: { configMapKeyRef: { name: appointment-config, key: CORS_ALLOWED_ORIGINS } } }
+          readinessProbe: { httpGet: { path: /actuator/health, port: 4004 }, initialDelaySeconds: 20, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /actuator/health, port: 4004 }, initialDelaySeconds: 40, periodSeconds: 20 }
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: 500m, memory: 512Mi } }
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+spec:
+  selector: { app: api-gateway }
+  ports: [{ name: http, port: 4004, targetPort: 4004 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: frontend }
+  template:
+    metadata:
+      labels: { app: frontend }
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/replace-with-your-owner/appointment-frontend:replace-with-release-tag
+          ports: [{ containerPort: 80 }]
+          readinessProbe: { httpGet: { path: /, port: 80 }, initialDelaySeconds: 5, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /, port: 80 }, initialDelaySeconds: 15, periodSeconds: 20 }
+          resources: { requests: { cpu: 50m, memory: 64Mi }, limits: { cpu: 250m, memory: 128Mi } }
+          securityContext: { runAsNonRoot: false, allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  selector: { app: frontend }
+  ports: [{ name: http, port: 80, targetPort: 80 }]

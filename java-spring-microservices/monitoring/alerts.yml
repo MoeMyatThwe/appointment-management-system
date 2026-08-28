@@ -1,0 +1,29 @@
+groups:
+  - name: appointment-platform
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Appointment service is down"
+          description: "{{ $labels.job }} at {{ $labels.instance }} is unreachable."
+      - alert: HighGateway5xxRate
+        expr: |
+          sum(rate(spring_cloud_gateway_requests_seconds_count{status=~"5.."}[5m]))
+          / clamp_min(sum(rate(spring_cloud_gateway_requests_seconds_count[5m])), 1) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gateway 5xx rate is high"
+          description: "More than 5% of gateway requests have failed for 5 minutes."
+      - alert: HighJvmMemory
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM heap usage is high"
+          description: "{{ $labels.instance }} is using more than 85% heap."

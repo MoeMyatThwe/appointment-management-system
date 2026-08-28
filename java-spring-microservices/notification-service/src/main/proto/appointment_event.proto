@@ -1,0 +1,19 @@
+syntax = "proto3";
+package appointment.events;
+option java_multiple_files = true;
+message AppointmentEvent {
+  string appointmentId = 1;
+  string name = 2;
+  string email = 3;
+  string event_type = 4;
+  string tenant_id = 5;
+  string customer_id = 6;
+  string business_id = 7;
+  string staff_id = 8;
+  string service_id = 9;
+  string calendar_id = 10;
+  string start_time = 11;
+  string end_time = 12;
+  string status = 13;
+  string notes = 14;
+}

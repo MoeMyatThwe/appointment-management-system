@@ -1,0 +1,22 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+**/node_modules/
+**/dist/
+**/target/
+**/build/
+**/out/
+
+# IDE and operating-system files
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+.DS_Store
+Thumbs.db
+
+# Preserve any pre-existing nested Git metadata outside the main repository
+.git-nested-backup/

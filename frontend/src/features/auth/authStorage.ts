@@ -1,0 +1,35 @@
+const ACCESS_TOKEN_KEY = 'accessToken'
+const REFRESH_TOKEN_KEY = 'refreshToken'
+const TENANT_ID_KEY = 'tenantId'
+
+export function setSession(
+  accessToken: string,
+  tenantId: string,
+  refreshToken?: string,
+) {
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
+  localStorage.setItem(TENANT_ID_KEY, tenantId)
+  if (refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
+  }
+}
+
+export function clearSession() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(TENANT_ID_KEY)
+}
+
+export function getAccessToken() {
+  return localStorage.getItem(ACCESS_TOKEN_KEY)
+}
+
+export function getRefreshToken() {
+  return localStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+export function getTenantId() {
+  return localStorage.getItem(TENANT_ID_KEY)
+}

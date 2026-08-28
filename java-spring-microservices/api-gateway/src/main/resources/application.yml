@@ -1,0 +1,117 @@
+server:
+  port: 4004
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+
+auth:
+  service:
+    url: ${AUTH_SERVICE_URL:http://localhost:4005}
+
+appointment:
+  service:
+    url: ${APPOINTMENT_SERVICE_URL:http://localhost:4000}
+
+spring:
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          "[/**]":
+            allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: false
+      routes:
+        - id: auth-sensitive-route
+          uri: ${AUTH_SERVICE_URL:http://localhost:4005}
+          predicates:
+            - Path=/auth/login,/auth/register,/auth/recovery/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+
+        - id: platform-admin-auth-route
+          uri: ${AUTH_SERVICE_URL:http://localhost:4005}
+          predicates:
+            - Path=/auth/platform/**
+          filters:
+            - StripPrefix=1
+            - JwtValidation
+
+        - id: public-booking-route
+          uri: ${APPOINTMENT_SERVICE_URL:http://localhost:4000}
+          predicates:
+            - Path=/public/booking/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+
+        - id: auth-service-route
+          uri: ${AUTH_SERVICE_URL:http://localhost:4005}
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
+
+        - id: appointment-service-route
+          uri: ${APPOINTMENT_SERVICE_URL:http://localhost:4000}
+          predicates:
+            - Path=/api/appointments/**
+          filters:
+            - StripPrefix=1
+            - JwtValidation
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+
+        - id: catalog-service-route
+          uri: ${APPOINTMENT_SERVICE_URL:http://localhost:4000}
+          predicates:
+            - Path=/api/customers/**,/api/staff/**,/api/services/**,/api/resources/**,/api/settings/**
+          filters:
+            - StripPrefix=1
+            - JwtValidation
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+
+        - id: api-docs-appointment-route
+          uri: ${APPOINTMENT_SERVICE_URL:http://localhost:4000}
+          predicates:
+            - Path=/api-docs/appointments
+          filters:
+            - RewritePath=/api-docs/appointments,/v3/api-docs
+
+        - id: api-docs-auth-route
+          uri: ${AUTH_SERVICE_URL:http://localhost:4005}
+          predicates:
+            - Path=/api-docs/auth
+          filters:
+            - RewritePath=/api-docs/auth,/v3/api-docs

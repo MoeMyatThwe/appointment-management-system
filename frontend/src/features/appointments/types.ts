@@ -1,0 +1,54 @@
+export type AppointmentStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'CHECKED_IN'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'NO_SHOW'
+
+export interface Appointment {
+  id: string
+  businessId?: string
+  customerId: string
+  staffId: string
+  serviceId: string
+  resourceId?: string
+  calendarId?: string
+  startTime: string
+  endTime: string
+  status: AppointmentStatus
+  notes?: string
+}
+
+export interface AppointmentListResponse {
+  items: Appointment[]
+}
+
+export interface AppointmentPayment {
+  id?: string
+  appointmentId: string
+  amountDue: number
+  amountPaid: number
+  balance: number
+  currency: string
+  paymentMethod?: string
+  status: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'REFUNDED'
+  receiptNumber: string
+  updatedAt: string
+}
+
+export interface RecordPaymentInput {
+  amountPaid: number
+  paymentMethod: string
+  currency: string
+}
+
+export interface CreateAppointmentInput {
+  customerId: string
+  staffId: string
+  serviceId: string
+  startAtUtc: string
+  endAtUtc: string
+  resourceId?: string
+  notes?: string
+}

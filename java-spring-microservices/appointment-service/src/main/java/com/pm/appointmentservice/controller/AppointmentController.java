@@ -10,6 +10,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.groups.Default;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
@@ -46,6 +50,41 @@ public class AppointmentController {
       @RequestHeader("X-Tenant-ID") String tenantId) {
     List<AppointmentResponseDTO> appointments = appointmentService.getAppointments(tenantId);
     return ResponseEntity.ok().body(appointments);
+  }
+
+  @GetMapping("/search")
+  @Operation(summary = "Search and filter appointments")
+  public ResponseEntity<?> searchAppointments(
+      @RequestHeader("X-Tenant-ID") String tenantId,
+      @RequestParam(defaultValue = "") String search,
+      @RequestParam(defaultValue = "") String from,
+      @RequestParam(defaultValue = "") String to,
+      @RequestParam(defaultValue = "") String status,
+      @RequestParam(defaultValue = "") String staffId,
+      @RequestParam(defaultValue = "") String customerId,
+      @RequestParam(defaultValue = "") String serviceId,
+      @RequestParam(defaultValue = "") String resourceId,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "25") int size,
+      @RequestParam(defaultValue = "startTime") String sortBy,
+      @RequestParam(defaultValue = "asc") String direction) {
+    if (page < 0 || size < 1 || size > 100) {
+      return ResponseEntity.badRequest()
+          .body("page must be >= 0 and size must be between 1 and 100");
+    }
+    List<String> allowedSorts = List.of("startTime", "endTime", "status", "createdAt", "updatedAt");
+    if (!allowedSorts.contains(sortBy)) {
+      return ResponseEntity.badRequest().body("Unsupported sort field");
+    }
+    Sort.Direction sortDirection;
+    try {
+      sortDirection = Sort.Direction.fromString(direction);
+    } catch (IllegalArgumentException exception) {
+      return ResponseEntity.badRequest().body("direction must be asc or desc");
+    }
+    Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
+    return ResponseEntity.ok(appointmentService.searchAppointments(tenantId, search, from, to,
+        status, staffId, customerId, serviceId, resourceId, pageable));
   }
 
   @PostMapping

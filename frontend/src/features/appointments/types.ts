@@ -24,6 +24,16 @@ export interface AppointmentListResponse {
   items: Appointment[]
 }
 
+export interface PaginatedAppointmentResponse {
+  content: Appointment[]
+  number: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
 export interface AppointmentPayment {
   id?: string
   appointmentId: string

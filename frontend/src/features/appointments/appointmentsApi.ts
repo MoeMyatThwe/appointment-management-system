@@ -3,6 +3,7 @@ import type {
   Appointment,
   AppointmentListResponse,
   CreateAppointmentInput,
+  PaginatedAppointmentResponse,
 } from './types'
 
 interface AppointmentQuery {
@@ -13,12 +14,30 @@ interface AppointmentQuery {
   status?: string
 }
 
+export interface AppointmentSearchQuery extends AppointmentQuery {
+  search?: string
+  serviceId?: string
+  resourceId?: string
+  page?: number
+  size?: number
+  sortBy?: string
+  direction?: 'asc' | 'desc'
+}
+
 export async function fetchAppointments(query: AppointmentQuery = {}) {
   const { data } = await httpClient.get<AppointmentListResponse | Appointment[]>(
     '/api/appointments',
     { params: query },
   )
   return Array.isArray(data) ? data : data.items
+}
+
+export async function searchAppointments(query: AppointmentSearchQuery = {}) {
+  const { data } = await httpClient.get<PaginatedAppointmentResponse>(
+    '/api/appointments/search',
+    { params: query },
+  )
+  return data
 }
 
 export async function createAppointment(input: CreateAppointmentInput) {

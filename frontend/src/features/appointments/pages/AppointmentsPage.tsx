@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   cancelAppointment,
   createAppointment,
-  fetchAppointments,
   rescheduleAppointment,
+  searchAppointments,
 } from '../appointmentsApi'
 import { createCustomer, fetchCustomers } from '../../customers/customersApi'
 import { fetchStaff } from '../../staff/staffApi'
@@ -32,7 +32,12 @@ export function AppointmentsPage() {
   } | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [dateFilter, setDateFilter] = useState('')
+  const [fromFilter, setFromFilter] = useState('')
+  const [toFilter, setToFilter] = useState('')
+  const [staffFilter, setStaffFilter] = useState('')
+  const [serviceFilter, setServiceFilter] = useState('')
+  const [resourceFilter, setResourceFilter] = useState('')
+  const [page, setPage] = useState(0)
   const [showQuickCustomer, setShowQuickCustomer] = useState(false)
   const [quickCustomer, setQuickCustomer] = useState({ name: '', email: '' })
   const [paymentAppointmentId, setPaymentAppointmentId] = useState<string | null>(null)
@@ -40,8 +45,20 @@ export function AppointmentsPage() {
   const [paymentMethod, setPaymentMethod] = useState('CASH')
 
   const appointmentsQuery = useQuery({
-    queryKey: ['appointments'],
-    queryFn: () => fetchAppointments(),
+    queryKey: ['appointments', search, statusFilter, fromFilter, toFilter, staffFilter, serviceFilter, resourceFilter, page],
+    queryFn: () => searchAppointments({
+      search,
+      status: statusFilter,
+      staffId: staffFilter,
+      serviceId: serviceFilter,
+      resourceId: resourceFilter,
+      from: fromFilter || undefined,
+      to: toFilter || undefined,
+      page,
+      size: 10,
+      sortBy: 'startTime',
+      direction: 'asc',
+    }),
   })
   const customersQuery = useQuery({ queryKey: ['customers'], queryFn: () => fetchCustomers() })
   const staffQuery = useQuery({ queryKey: ['staff'], queryFn: fetchStaff })
@@ -115,22 +132,18 @@ export function AppointmentsPage() {
   })
 
   const selectedService = servicesQuery.data?.find((service) => service.id === form.serviceId)
-  const visibleAppointments = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase()
-    return appointmentsQuery.data?.filter((appointment) => {
-      if (!appointment.customerId || !appointment.startTime || !appointment.endTime) {
-        return false
-      }
-      const customer = customersQuery.data?.find((item) => item.id === appointment.customerId)?.name ?? ''
-      const service = servicesQuery.data?.find((item) => item.id === appointment.serviceId)?.name ?? ''
-      const staff = staffQuery.data?.find((item) => item.id === appointment.staffId)?.name ?? ''
-      const searchable = `${customer} ${service} ${staff} ${appointment.notes ?? ''}`.toLowerCase()
-      const matchesSearch = !normalizedSearch || searchable.includes(normalizedSearch)
-      const matchesStatus = !statusFilter || appointment.status === statusFilter
-      const matchesDate = !dateFilter || appointment.startTime.startsWith(dateFilter)
-      return matchesSearch && matchesStatus && matchesDate
-    })
-  }, [appointmentsQuery.data, customersQuery.data, dateFilter, search, servicesQuery.data, staffQuery.data, statusFilter])
+  const visibleAppointments = appointmentsQuery.data?.content ?? []
+
+  function clearFilters() {
+    setSearch('')
+    setStatusFilter('')
+    setFromFilter('')
+    setToFilter('')
+    setStaffFilter('')
+    setServiceFilter('')
+    setResourceFilter('')
+    setPage(0)
+  }
 
   function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -146,7 +159,7 @@ export function AppointmentsPage() {
           <p className="mt-2 text-sm text-slate-500">Book and manage visits for your customers.</p>
         </div>
         <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm ring-1 ring-slate-200">
-          {visibleAppointments?.length ?? 0} scheduled
+          {appointmentsQuery.data?.totalElements ?? 0} matching
         </span>
       </div>
 
@@ -221,9 +234,9 @@ export function AppointmentsPage() {
             <h3 className="text-lg font-semibold text-slate-900">Upcoming appointments</h3>
             <button className="text-sm font-semibold text-indigo-600 hover:text-indigo-700" type="button" onClick={() => void appointmentsQuery.refetch()}>Refresh</button>
           </div>
-          <div className="mb-4 grid min-w-0 gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:grid-cols-[minmax(0,1fr)_minmax(150px,170px)_minmax(150px,170px)]">
-            <input className="min-w-0 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Search customer, service, staff..." value={search} onChange={(event) => setSearch(event.target.value)} />
-            <select className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <div className="mb-4 grid min-w-0 gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:grid-cols-2 lg:grid-cols-3">
+            <input className="min-w-0 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Search customer, email, service, staff, notes..." value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} />
+            <select className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(0) }}>
               <option value="">All statuses</option>
               <option value="PENDING">Pending</option>
               <option value="CONFIRMED">Confirmed</option>
@@ -231,7 +244,21 @@ export function AppointmentsPage() {
               <option value="CANCELLED">Cancelled</option>
               <option value="NO_SHOW">No-show</option>
             </select>
-            <input className="min-w-0 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
+            <input className="min-w-0 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" type="datetime-local" aria-label="From date and time" value={fromFilter} onChange={(event) => { setFromFilter(event.target.value); setPage(0) }} />
+            <input className="min-w-0 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" type="datetime-local" aria-label="To date and time" value={toFilter} onChange={(event) => { setToFilter(event.target.value); setPage(0) }} />
+            <select className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" value={staffFilter} onChange={(event) => { setStaffFilter(event.target.value); setPage(0) }}>
+              <option value="">All staff</option>
+              {staffQuery.data?.map((staff) => <option key={staff.id} value={staff.id}>{staff.name}</option>)}
+            </select>
+            <select className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" value={serviceFilter} onChange={(event) => { setServiceFilter(event.target.value); setPage(0) }}>
+              <option value="">All services</option>
+              {servicesQuery.data?.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
+            </select>
+            <select className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" value={resourceFilter} onChange={(event) => { setResourceFilter(event.target.value); setPage(0) }}>
+              <option value="">All resources</option>
+              {resourcesQuery.data?.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}</option>)}
+            </select>
+            <button className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button" onClick={clearFilters}>Clear filters</button>
           </div>
           {appointmentsQuery.isLoading ? <p className="text-sm text-slate-500">Loading appointments...</p> : null}
 
@@ -243,6 +270,15 @@ export function AppointmentsPage() {
                 <p className="font-semibold text-slate-900">{customersQuery.data?.find((customer) => customer.id === appointment.customerId)?.name ?? 'Customer'}</p>
                 <p className="mt-1 text-sm text-slate-500">{appointment.startTime || 'Time not set'} – {appointment.endTime || 'Time not set'}</p>
               </div>
+              {appointmentsQuery.data && appointmentsQuery.data.totalPages > 1 ? (
+                <div className="mt-5 flex items-center justify-between rounded-xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-slate-200">
+                  <span className="text-slate-500">Page {appointmentsQuery.data.number + 1} of {appointmentsQuery.data.totalPages}</span>
+                  <div className="flex gap-2">
+                    <button className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:opacity-40" type="button" disabled={appointmentsQuery.data.first} onClick={() => setPage((current) => Math.max(0, current - 1))}>Previous</button>
+                    <button className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:opacity-40" type="button" disabled={appointmentsQuery.data.last} onClick={() => setPage((current) => current + 1)}>Next</button>
+                  </div>
+                </div>
+              ) : null}
               <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{appointment.status || 'Pending'}</span>
             </div>
             <p className="mt-3 text-sm text-slate-600">{servicesQuery.data?.find((service) => service.id === appointment.serviceId)?.name ?? 'Service not found'} · {staffQuery.data?.find((staff) => staff.id === appointment.staffId)?.name ?? 'Staff member not found'}</p>

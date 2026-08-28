@@ -13,6 +13,8 @@ import com.pm.appointmentservice.repository.AppointmentRepository;
 import java.util.List;
 import java.util.UUID;
 import java.time.OffsetDateTime;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -37,6 +39,18 @@ public class AppointmentService {
     List<Appointment> appointments = appointmentRepository.findAllByTenantId(tenantId);
 
     return appointments.stream().map(AppointmentMapper::toDTO).toList();
+  }
+
+  public Page<AppointmentResponseDTO> searchAppointments(String tenantId, String search,
+      String fromTime, String toTime, String status, String staffId, String customerId,
+      String serviceId, String resourceId, Pageable pageable) {
+    return appointmentRepository.search(tenantId, normalize(search), normalize(fromTime),
+        normalize(toTime), normalize(status), normalize(staffId), normalize(customerId),
+        normalize(serviceId), normalize(resourceId), pageable).map(AppointmentMapper::toDTO);
+  }
+
+  private String normalize(String value) {
+    return value == null ? "" : value.trim();
   }
 
   public AppointmentResponseDTO createAppointment(AppointmentRequestDTO appointmentRequestDTO,

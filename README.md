@@ -126,8 +126,25 @@ Press `Ctrl+C` in the Docker terminal to stop the local stack.
 ```text
 frontend/                  React, TypeScript, and Vite application
 java-spring-microservices/ Spring Boot microservices and Docker Compose
-documentation.md           Detailed product and operations documentation
+documentation.md           Detailed product, workflow, service, and operations documentation
 ```
 
 Keep local secrets in the ignored `.env` file. Do not commit database
 passwords, JWT secrets, Stripe keys, or webhook secrets.
+
+## Documentation guide
+
+This repository intentionally has one README and one detailed documentation
+file:
+
+- **`README.md`**: Short GitHub landing page. It explains what the application
+  is, who uses it, the main workflows, the service architecture, important
+  routes, and how to run the complete local stack.
+- **`documentation.md`**: Detailed project documentation. It explains
+  platform-owner and business-owner operations, permissions, tenant
+  isolation, payments, booking, notifications, databases, Kafka, gRPC,
+  deployment, monitoring, testing, and known limitations.
+
+The backend directory does not have a separate README. Its service-specific
+configuration and source code are documented through the root README and
+`documentation.md`.

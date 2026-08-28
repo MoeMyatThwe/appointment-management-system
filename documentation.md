@@ -355,11 +355,11 @@ From PowerShell:
 
 ```powershell
 cd "C:\Users\<your-user>\Desktop\Appointment-Management-System\java-spring-microservices"
-Copy-Item .env.example .env
 ```
 
-Edit `.env` and set `DATABASE_PASSWORD` and `JWT_SECRET`. Keep `.env`
-private; it is ignored by Git.
+The local project already uses the ignored `.env` file in this directory.
+Keep it private and set the database, JWT, Stripe, and notification values
+required for your environment. Never commit it.
 
 For the normal local stack, using local PostgreSQL, Kafka, and Redis:
 

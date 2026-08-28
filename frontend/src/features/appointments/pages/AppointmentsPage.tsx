@@ -2,10 +2,10 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  cancelAppointment,
   createAppointment,
   rescheduleAppointment,
   searchAppointments,
+  updateAppointmentStatus,
 } from '../appointmentsApi'
 import { createCustomer, fetchCustomers } from '../../customers/customersApi'
 import { fetchStaff } from '../../staff/staffApi'
@@ -17,6 +17,7 @@ import { FilterBar } from '../../../shared/components/FilterBar'
 import { ListState } from '../../../shared/components/ListState'
 import { Pagination } from '../../../shared/components/Pagination'
 import { SearchInput } from '../../../shared/components/SearchInput'
+import type { AppointmentStatus } from '../types'
 
 export function AppointmentsPage() {
   const queryClient = useQueryClient()
@@ -101,8 +102,9 @@ export function AppointmentsPage() {
     },
   })
 
-  const cancelMutation = useMutation({
-    mutationFn: (appointmentId: string) => cancelAppointment(appointmentId),
+  const statusMutation = useMutation({
+    mutationFn: ({ appointmentId, status }: { appointmentId: string; status: AppointmentStatus }) =>
+      updateAppointmentStatus(appointmentId, status),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['appointments'] }),
   })
   const quickCustomerMutation = useMutation({
@@ -147,6 +149,13 @@ export function AppointmentsPage() {
     setServiceFilter('')
     setResourceFilter('')
     setPage(0)
+  }
+
+  function nextStatuses(status: AppointmentStatus): Array<{ status: AppointmentStatus; label: string }> {
+    if (status === 'PENDING') return [{ status: 'CONFIRMED', label: 'Confirm' }, { status: 'CANCELLED', label: 'Cancel' }]
+    if (status === 'CONFIRMED') return [{ status: 'CHECKED_IN', label: 'Check in' }, { status: 'NO_SHOW', label: 'No-show' }, { status: 'CANCELLED', label: 'Cancel' }]
+    if (status === 'CHECKED_IN') return [{ status: 'COMPLETED', label: 'Complete' }, { status: 'CANCELLED', label: 'Cancel' }]
+    return []
   }
 
   function onCreate(event: FormEvent<HTMLFormElement>) {
@@ -248,6 +257,7 @@ export function AppointmentsPage() {
               <option value="">All statuses</option>
               <option value="PENDING">Pending</option>
               <option value="CONFIRMED">Confirmed</option>
+              <option value="CHECKED_IN">Checked in</option>
               <option value="COMPLETED">Completed</option>
               <option value="CANCELLED">Cancelled</option>
               <option value="NO_SHOW">No-show</option>
@@ -299,13 +309,19 @@ export function AppointmentsPage() {
               >
                 Reschedule
               </button>
-              <button className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
-                type="button"
-                onClick={() => cancelMutation.mutate(appointment.id)}
-                disabled={cancelMutation.isPending}
-              >
-                Cancel
-              </button>
+              {nextStatuses(appointment.status).map(({ status, label }) => (
+                <button
+                  className={status === 'CANCELLED'
+                    ? 'rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50'
+                    : 'rounded-lg border border-indigo-200 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50'}
+                  type="button"
+                  key={status}
+                  disabled={statusMutation.isPending}
+                  onClick={() => statusMutation.mutate({ appointmentId: appointment.id, status })}
+                >
+                  {label}
+                </button>
+              ))}
               <button className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
                 type="button"
                 onClick={() => { setPaymentAppointmentId(appointment.id); setPaymentAmount('') }}
@@ -313,6 +329,7 @@ export function AppointmentsPage() {
                 Payment
               </button>
             </div>
+            {statusMutation.isError ? <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">That status change is not allowed.</p> : null}
             {rescheduleDraft?.appointmentId === appointment.id ? (
               <div className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
                 <label className="grid gap-1 text-xs font-semibold text-slate-600">

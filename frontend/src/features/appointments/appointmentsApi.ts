@@ -2,6 +2,7 @@ import { httpClient } from '../../shared/api/httpClient'
 import type {
   Appointment,
   AppointmentListResponse,
+  AppointmentStatus,
   CreateAppointmentInput,
   PaginatedAppointmentResponse,
 } from './types'
@@ -71,6 +72,17 @@ export async function rescheduleAppointment(
 export async function cancelAppointment(appointmentId: string) {
   const { data } = await httpClient.patch<Appointment>(
     `/api/appointments/${appointmentId}/cancel`,
+  )
+  return data
+}
+
+export async function updateAppointmentStatus(
+  appointmentId: string,
+  status: AppointmentStatus,
+) {
+  const { data } = await httpClient.patch<Appointment>(
+    `/api/appointments/${appointmentId}/status`,
+    { status },
   )
   return data
 }

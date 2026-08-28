@@ -3,8 +3,10 @@ package com.pm.appointmentservice.service;
 import com.pm.appointmentservice.dto.AppointmentRequestDTO;
 import com.pm.appointmentservice.dto.AppointmentResponseDTO;
 import com.pm.appointmentservice.dto.AppointmentTimeChangeDTO;
+import com.pm.appointmentservice.dto.AppointmentStatusChangeDTO;
 import com.pm.appointmentservice.exception.TimeSlotAlreadyBookedException;
 import com.pm.appointmentservice.exception.AppointmentNotFoundException;
+import com.pm.appointmentservice.exception.InvalidAppointmentStatusException;
 import com.pm.appointmentservice.grpc.BillingServiceGrpcClient;
 import com.pm.appointmentservice.kafka.KafkaProducer;
 import com.pm.appointmentservice.mapper.AppointmentMapper;
@@ -13,12 +15,22 @@ import com.pm.appointmentservice.repository.AppointmentRepository;
 import java.util.List;
 import java.util.UUID;
 import java.time.OffsetDateTime;
+import java.util.Map;
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AppointmentService {
+
+  private static final Map<String, Set<String>> ALLOWED_STATUS_TRANSITIONS = Map.of(
+      "PENDING", Set.of("CONFIRMED", "CANCELLED"),
+      "CONFIRMED", Set.of("CHECKED_IN", "CANCELLED", "NO_SHOW"),
+      "CHECKED_IN", Set.of("COMPLETED", "CANCELLED"),
+      "COMPLETED", Set.of(),
+      "CANCELLED", Set.of(),
+      "NO_SHOW", Set.of());
 
   private final AppointmentRepository appointmentRepository;
   private final BillingServiceGrpcClient billingServiceGrpcClient;
@@ -55,6 +67,9 @@ public class AppointmentService {
 
   public AppointmentResponseDTO createAppointment(AppointmentRequestDTO appointmentRequestDTO,
       String tenantId) {
+    if (!"PENDING".equalsIgnoreCase(appointmentRequestDTO.getStatus())) {
+      throw new InvalidAppointmentStatusException("New appointments must start with PENDING status");
+    }
     scheduleService.validateAppointmentWindow(tenantId, appointmentRequestDTO.getStartTime(),
         appointmentRequestDTO.getEndTime());
     validateNoOverlap(appointmentRequestDTO, tenantId, null);
@@ -89,7 +104,12 @@ public class AppointmentService {
     appointment.setCalendarId(appointmentRequestDTO.getCalendarId());
     appointment.setStartTime(appointmentRequestDTO.getStartTime());
     appointment.setEndTime(appointmentRequestDTO.getEndTime());
-    appointment.setStatus(appointmentRequestDTO.getStatus());
+    if (appointmentRequestDTO.getStatus() != null
+        && !appointmentRequestDTO.getStatus().isBlank()) {
+      String nextStatus = appointmentRequestDTO.getStatus().trim().toUpperCase();
+      validateStatusTransition(appointment.getStatus(), nextStatus);
+      appointment.setStatus(nextStatus);
+    }
     appointment.setNotes(appointmentRequestDTO.getNotes());
     appointment.setUpdatedAt(appointmentRequestDTO.getStartTime());
 
@@ -140,12 +160,31 @@ public class AppointmentService {
   }
 
   public AppointmentResponseDTO cancelAppointment(UUID id, String tenantId) {
+    return changeStatus(id, new AppointmentStatusChangeDTO("CANCELLED"), tenantId);
+  }
+
+  public AppointmentResponseDTO changeStatus(UUID id, AppointmentStatusChangeDTO statusChange,
+      String tenantId) {
     Appointment appointment = appointmentRepository.findByIdAndTenantId(id, tenantId).orElseThrow(
         () -> new AppointmentNotFoundException("Appointment not found with ID: " + id));
-    appointment.setStatus("CANCELLED");
+    String nextStatus = statusChange.status().trim().toUpperCase();
+    validateStatusTransition(appointment.getStatus(), nextStatus);
+    appointment.setStatus(nextStatus);
     appointment.setUpdatedAt(OffsetDateTime.now().toString());
     Appointment updated = appointmentRepository.save(appointment);
-    kafkaProducer.sendEvent(updated, "APPOINTMENT_CANCELLED");
+    kafkaProducer.sendEvent(updated,
+        "CANCELLED".equals(nextStatus) ? "APPOINTMENT_CANCELLED" : "APPOINTMENT_STATUS_CHANGED");
     return AppointmentMapper.toDTO(updated);
+  }
+
+  private void validateStatusTransition(String currentStatus, String nextStatus) {
+    if (currentStatus.equals(nextStatus)) {
+      return;
+    }
+    Set<String> allowedStatuses = ALLOWED_STATUS_TRANSITIONS.get(currentStatus);
+    if (allowedStatuses == null || !allowedStatuses.contains(nextStatus)) {
+      throw new InvalidAppointmentStatusException(
+          "Cannot change appointment status from " + currentStatus + " to " + nextStatus);
+    }
   }
 }

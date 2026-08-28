@@ -54,4 +54,12 @@ public class GlobalExceptionHandler {
     errors.put("message", ex.getMessage());
     return ResponseEntity.badRequest().body(errors);
   }
+
+  @ExceptionHandler(InvalidAppointmentStatusException.class)
+  public ResponseEntity<Map<String, String>> handleInvalidAppointmentStatusException(
+      InvalidAppointmentStatusException ex) {
+    Map<String, String> errors = new HashMap<>();
+    errors.put("message", ex.getMessage());
+    return ResponseEntity.badRequest().body(errors);
+  }
 }

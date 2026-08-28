@@ -121,6 +121,7 @@ export function CalendarPage() {
           <option value="">All statuses</option>
           <option value="PENDING">Pending</option>
           <option value="CONFIRMED">Confirmed</option>
+          <option value="CHECKED_IN">Checked in</option>
           <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>
           <option value="NO_SHOW">No-show</option>

@@ -3,6 +3,7 @@ package com.pm.appointmentservice.controller;
 import com.pm.appointmentservice.dto.AppointmentRequestDTO;
 import com.pm.appointmentservice.dto.AppointmentResponseDTO;
 import com.pm.appointmentservice.dto.AppointmentTimeChangeDTO;
+import com.pm.appointmentservice.dto.AppointmentStatusChangeDTO;
 import com.pm.appointmentservice.dto.validators.CreateAppointmentValidationGroup;
 import com.pm.appointmentservice.service.AppointmentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -147,6 +148,20 @@ public class AppointmentController {
         tenantId, email, id);
     return ResponseEntity.ok(
         appointmentService.rescheduleAppointment(id, timeChange, tenantId));
+  }
+
+  @PatchMapping("/{id}/status")
+  @Operation(summary = "Change appointment status")
+  public ResponseEntity<AppointmentResponseDTO> changeStatus(
+      @PathVariable UUID id,
+      @Validated @RequestBody AppointmentStatusChangeDTO statusChange,
+      @RequestHeader("X-Tenant-ID") String tenantId,
+      @RequestHeader("X-User-Role") String role,
+      @RequestHeader("X-User-Email") String email) {
+    requireWriteRole(role);
+    auditLog.info("event=APPOINTMENT_STATUS_CHANGE tenantId={} user={} appointmentId={} status={}",
+        tenantId, email, id, statusChange.status());
+    return ResponseEntity.ok(appointmentService.changeStatus(id, statusChange, tenantId));
   }
 
   @PatchMapping("/{id}/cancel")

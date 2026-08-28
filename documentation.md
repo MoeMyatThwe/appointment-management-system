@@ -235,6 +235,19 @@ booking for the same staff member, customer, or resource.
 7. Use **Cancel** when the visit is cancelled. Cancelled appointments do not
    block future availability.
 
+Appointment statuses follow a controlled lifecycle:
+
+```text
+PENDING → CONFIRMED → CHECKED_IN → COMPLETED
+   │          │             │
+   └──────────┴─────────────┴──→ CANCELLED
+                └──────────────→ NO_SHOW
+```
+
+The authenticated appointment page exposes only the next valid actions for the
+current status. The backend validates every transition, so clients cannot
+skip the lifecycle by sending an arbitrary status.
+
 You can select **Add new customer** during appointment creation instead of
 leaving the page.
 

@@ -13,6 +13,10 @@ import { fetchServices } from '../../services/servicesApi'
 import { fetchResources } from '../../resources/resourcesApi'
 import { fetchAppointmentPayment, recordAppointmentPayment } from '../paymentsApi'
 import { createStripeCheckout } from '../paymentsApi'
+import { FilterBar } from '../../../shared/components/FilterBar'
+import { ListState } from '../../../shared/components/ListState'
+import { Pagination } from '../../../shared/components/Pagination'
+import { SearchInput } from '../../../shared/components/SearchInput'
 
 export function AppointmentsPage() {
   const queryClient = useQueryClient()
@@ -234,8 +238,12 @@ export function AppointmentsPage() {
             <h3 className="text-lg font-semibold text-slate-900">Upcoming appointments</h3>
             <button className="text-sm font-semibold text-indigo-600 hover:text-indigo-700" type="button" onClick={() => void appointmentsQuery.refetch()}>Refresh</button>
           </div>
-          <div className="mb-4 grid min-w-0 gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:grid-cols-2 lg:grid-cols-3">
-            <input className="min-w-0 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Search customer, email, service, staff, notes..." value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} />
+          <FilterBar onClear={clearFilters}>
+            <SearchInput
+              value={search}
+              placeholder="Search customer, email, service, staff, notes..."
+              onChange={(value) => { setSearch(value); setPage(0) }}
+            />
             <select className="min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(0) }}>
               <option value="">All statuses</option>
               <option value="PENDING">Pending</option>
@@ -258,27 +266,23 @@ export function AppointmentsPage() {
               <option value="">All resources</option>
               {resourcesQuery.data?.map((resource) => <option key={resource.id} value={resource.id}>{resource.name}</option>)}
             </select>
-            <button className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button" onClick={clearFilters}>Clear filters</button>
-          </div>
-          {appointmentsQuery.isLoading ? <p className="text-sm text-slate-500">Loading appointments...</p> : null}
+          </FilterBar>
 
-          <div className="grid gap-3">
-        {visibleAppointments?.map((appointment) => (
+          <ListState
+            loading={appointmentsQuery.isLoading}
+            error={appointmentsQuery.isError}
+            empty={!visibleAppointments.length}
+            loadingMessage="Loading appointments..."
+            emptyMessage="No appointments match the current filters."
+          >
+            <div className="grid gap-3">
+        {visibleAppointments.map((appointment) => (
           <div key={appointment.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold text-slate-900">{customersQuery.data?.find((customer) => customer.id === appointment.customerId)?.name ?? 'Customer'}</p>
                 <p className="mt-1 text-sm text-slate-500">{appointment.startTime || 'Time not set'} – {appointment.endTime || 'Time not set'}</p>
               </div>
-              {appointmentsQuery.data && appointmentsQuery.data.totalPages > 1 ? (
-                <div className="mt-5 flex items-center justify-between rounded-xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-slate-200">
-                  <span className="text-slate-500">Page {appointmentsQuery.data.number + 1} of {appointmentsQuery.data.totalPages}</span>
-                  <div className="flex gap-2">
-                    <button className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:opacity-40" type="button" disabled={appointmentsQuery.data.first} onClick={() => setPage((current) => Math.max(0, current - 1))}>Previous</button>
-                    <button className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:opacity-40" type="button" disabled={appointmentsQuery.data.last} onClick={() => setPage((current) => current + 1)}>Next</button>
-                  </div>
-                </div>
-              ) : null}
               <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{appointment.status || 'Pending'}</span>
             </div>
             <p className="mt-3 text-sm text-slate-600">{servicesQuery.data?.find((service) => service.id === appointment.serviceId)?.name ?? 'Service not found'} · {staffQuery.data?.find((staff) => staff.id === appointment.staffId)?.name ?? 'Staff member not found'}</p>
@@ -330,7 +334,13 @@ export function AppointmentsPage() {
             {rescheduleMutation.isError ? <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">That time is unavailable. Choose another slot.</p> : null}
           </div>
         ))}
-          </div>
+            </div>
+          </ListState>
+          <Pagination
+            page={appointmentsQuery.data?.number ?? 0}
+            totalPages={appointmentsQuery.data?.totalPages ?? 0}
+            onPageChange={setPage}
+          />
         </section>
       </div>
       {paymentAppointmentId ? (

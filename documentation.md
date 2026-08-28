@@ -410,6 +410,11 @@ Use **Business Hours** to configure opening and closing times, optional daily
 breaks, and holiday closures. New appointments and reschedules are rejected
 when they fall outside the saved schedule.
 
+Appointment times are validated as complete local business-day windows. The
+start must be before the end, both times must be on the same business day, and
+appointments touching a configured holiday are rejected. Invalid date-time
+values return a clear validation response instead of being stored.
+
 Use **Calendar** for a weekly visual schedule. The server prevents overlapping
 appointments for the same staff member, customer, or selected room/resource.
 Cancelled appointments do not block future availability.

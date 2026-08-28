@@ -81,7 +81,11 @@ public class ScheduleService {
     if (!endAt.isAfter(startAt)) {
       throw new BusinessClosedException("Appointment end time must be after its start time");
     }
-    if (holidayRepository.existsByTenantIdAndHolidayDate(tenantId, startAt.toLocalDate())) {
+    if (!startAt.toLocalDate().equals(endAt.toLocalDate())) {
+      throw new BusinessClosedException("Appointments must start and end on the same day");
+    }
+    if (holidayRepository.existsByTenantIdAndHolidayDate(tenantId, startAt.toLocalDate())
+        || holidayRepository.existsByTenantIdAndHolidayDate(tenantId, endAt.toLocalDate())) {
       throw new BusinessClosedException("The business is closed on this holiday");
     }
     BusinessHoursDTO hours = getHours(tenantId).stream()
@@ -131,8 +135,12 @@ public class ScheduleService {
   private LocalDateTime parseDateTime(String value) {
     try {
       return LocalDateTime.parse(value);
-    } catch (DateTimeParseException ignored) {
-      return java.time.OffsetDateTime.parse(value).toLocalDateTime();
+    } catch (DateTimeParseException localDateTimeException) {
+      try {
+        return java.time.OffsetDateTime.parse(value).toLocalDateTime();
+      } catch (DateTimeParseException offsetDateTimeException) {
+        throw new BusinessClosedException("Appointment times must be valid date and time values");
+      }
     }
   }
 }

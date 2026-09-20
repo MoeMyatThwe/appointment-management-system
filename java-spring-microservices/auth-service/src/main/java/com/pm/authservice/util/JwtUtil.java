@@ -17,11 +17,14 @@ import org.springframework.stereotype.Component;
 public class JwtUtil {
 
   private final Key secretKey;
+  private final long accessTokenMinutes;
 
-  public JwtUtil(@Value("${jwt.secret}") String secret) {
+  public JwtUtil(@Value("${jwt.secret}") String secret,
+      @Value("${jwt.access-token-minutes:15}") long accessTokenMinutes) {
     byte[] keyBytes = Base64.getDecoder()
         .decode(secret.getBytes(StandardCharsets.UTF_8));
     this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+    this.accessTokenMinutes = accessTokenMinutes;
   }
 
   public String generateToken(String email, String role, String tenantId) {
@@ -30,7 +33,7 @@ public class JwtUtil {
         .claim("role", role)
         .claim("tenantId", tenantId)
         .issuedAt(new Date())
-        .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 *10)) // 10 hours
+        .expiration(new Date(System.currentTimeMillis() + accessTokenMinutes * 60_000))
         .signWith(secretKey)
         .compact();
   }

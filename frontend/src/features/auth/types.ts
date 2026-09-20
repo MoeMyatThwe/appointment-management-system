@@ -7,6 +7,7 @@ export interface CurrentUser {
   email: string
   role: UserRole
   tenantName: string
+  timezone: string
   onboardingCompleted: boolean
 }
 

@@ -10,15 +10,39 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
   List<Appointment> findAllByTenantId(String tenantId);
-  List<Appointment> findAllByTenantIdAndCustomerIdOrderByStartTimeDesc(String tenantId, String customerId);
+  long countByTenantIdAndStatus(String tenantId, String status);
+  long countByTenantIdAndStartTimeGreaterThanEqualAndStatusNot(String tenantId, String startTime, String status);
+  long countByTenantIdAndStartTimeGreaterThanEqualAndStartTimeLessThanAndStatusNot(
+      String tenantId, String startTime, String endTime, String status);
+  List<Appointment> findTop5ByTenantIdAndStartTimeGreaterThanEqualAndStatusNotOrderByStartTimeAsc(
+      String tenantId, String startTime, String status);
+  @Query("""
+      select a from Appointment a
+      where a.tenantId = :tenantId
+        and (:fromTime = '' or a.endTime >= :fromTime)
+        and (:toTime = '' or a.startTime <= :toTime)
+      order by a.startTime asc
+      """)
+  List<Appointment> findForReport(@Param("tenantId") String tenantId,
+      @Param("fromTime") String fromTime, @Param("toTime") String toTime);
+  Page<Appointment> findAllByTenantIdAndCustomerIdOrderByStartTimeDesc(
+      String tenantId, String customerId, Pageable pageable);
+  Page<Appointment> findAllByTenantIdAndStaffIdOrderByStartTimeDesc(
+      String tenantId, String staffId, Pageable pageable);
   Optional<Appointment> findByIdAndTenantId(UUID id, String tenantId);
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select a from Appointment a where a.id = :id and a.tenantId = :tenantId")
+  Optional<Appointment> findByIdAndTenantIdForUpdate(@Param("id") UUID id, @Param("tenantId") String tenantId);
 
   @Query("""
       select a from Appointment a
+      left join AppointmentPayment p on p.appointmentId = a.id and p.tenantId = a.tenantId
       where a.tenantId = :tenantId
         and (:search = '' or
           lower(coalesce(a.notes, '')) like lower(concat('%', :search, '%'))
@@ -37,6 +61,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
         and (:fromTime = '' or a.endTime >= :fromTime)
         and (:toTime = '' or a.startTime <= :toTime)
         and (:status = '' or a.status = :status)
+        and (:paymentStatus = '' or coalesce(p.status, 'UNPAID') = :paymentStatus)
         and (:staffId = '' or a.staffId = :staffId)
         and (:customerId = '' or a.customerId = :customerId)
         and (:serviceId = '' or a.serviceId = :serviceId)
@@ -48,6 +73,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       @Param("fromTime") String fromTime,
       @Param("toTime") String toTime,
       @Param("status") String status,
+      @Param("paymentStatus") String paymentStatus,
       @Param("staffId") String staffId,
       @Param("customerId") String customerId,
       @Param("serviceId") String serviceId,

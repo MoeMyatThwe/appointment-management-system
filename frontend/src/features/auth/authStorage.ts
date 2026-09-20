@@ -4,11 +4,15 @@ const TENANT_ID_KEY = 'tenantId'
 
 export function setSession(
   accessToken: string,
-  tenantId: string,
+  tenantId?: string,
   refreshToken?: string,
 ) {
   localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
-  localStorage.setItem(TENANT_ID_KEY, tenantId)
+  if (tenantId) {
+    localStorage.setItem(TENANT_ID_KEY, tenantId)
+  } else {
+    localStorage.removeItem(TENANT_ID_KEY)
+  }
   if (refreshToken) {
     localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
   } else {

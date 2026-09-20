@@ -10,14 +10,12 @@ import { useAuthStore } from '../features/auth/authStore'
 import { ServicesPage } from '../features/services/pages/ServicesPage'
 import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage'
 import { useQuery } from '@tanstack/react-query'
-import { fetchAppointments } from '../features/appointments/appointmentsApi'
-import { fetchCustomers } from '../features/customers/customersApi'
-import { fetchStaff } from '../features/staff/staffApi'
-import { fetchServices } from '../features/services/servicesApi'
+import { fetchDashboardSummary } from '../features/reports/reportsApi'
 import { ResourcesPage } from '../features/resources/pages/ResourcesPage'
 import { SchedulePage } from '../features/schedule/pages/SchedulePage'
 import { CalendarPage } from '../features/appointments/pages/CalendarPage'
 import { PublicBookingPage } from '../features/booking/pages/PublicBookingPage'
+import { PublicBookingManagePage } from '../features/booking/pages/PublicBookingManagePage'
 import { ReportsPage } from '../features/reports/pages/ReportsPage'
 import { PlatformAdminPage } from '../features/platform/pages/PlatformAdminPage'
 import { PlatformSupportPage } from '../features/platform/pages/PlatformSupportPage'
@@ -26,35 +24,34 @@ import { PlatformAuditLogPage } from '../features/platform/pages/PlatformAuditLo
 import { RecoveryPage } from '../features/auth/pages/RecoveryPage'
 import { BillingPage } from '../features/billing/pages/BillingPage'
 import { LandingPage } from '../features/landing/pages/LandingPage'
+import { SupportAccessConsentPage } from '../features/platform/pages/SupportAccessConsentPage'
 
 function DashboardPage() {
   const user = useAuthStore((state) => state.user)
-  const appointments = useQuery({ queryKey: ['appointments'], queryFn: () => fetchAppointments() })
-  const customers = useQuery({ queryKey: ['customers'], queryFn: () => fetchCustomers() })
-  const staff = useQuery({ queryKey: ['staff'], queryFn: fetchStaff })
-  const services = useQuery({ queryKey: ['services'], queryFn: fetchServices })
-  const today = new Date().toISOString().slice(0, 10)
-  const upcoming = appointments.data?.filter((appointment) => appointment.startTime && appointment.startTime >= new Date().toISOString() && appointment.status !== 'CANCELLED').slice(0, 5) ?? []
+  const summary = useQuery({ queryKey: ['dashboard-summary'], queryFn: fetchDashboardSummary })
+  const isLoading = summary.isLoading
+  const hasError = summary.isError
 
   return (
     <div className="mx-auto max-w-6xl">
-      <div className="mb-8">
+      <div className="mb-8" data-tour="dashboard-overview">
         <p className="text-sm font-semibold text-indigo-600">Workspace overview</p>
         <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Good morning</h2>
         <p className="mt-2 text-sm text-slate-500">Here is what is happening in your business today.</p>
       </div>
+      {hasError ? <div className="mb-6 rounded-2xl border border-rose-300/30 bg-rose-950/30 px-4 py-3 text-sm text-rose-200" role="alert">Some workspace data could not be loaded. Refresh the page to try again.</div> : null}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ['Today', appointments.data?.filter((item) => item.startTime?.startsWith(today) && item.status !== 'CANCELLED').length ?? 0, 'Appointments scheduled'],
-          ['Customers', customers.data?.length ?? 0, 'People in your workspace'],
-          ['Staff', staff.data?.length ?? 0, 'Bookable team members'],
-          ['Services', services.data?.length ?? 0, 'Services available to book'],
-        ].map(([label, value, detail]) => <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200" key={label}><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div>)}
+          ['Today', summary.data?.appointmentsToday ?? 0, 'Appointments scheduled'],
+          ['Customers', summary.data?.customerCount ?? 0, 'People in your workspace'],
+          ['Staff', summary.data?.staffCount ?? 0, 'Bookable team members'],
+          ['Services', summary.data?.serviceCount ?? 0, 'Services available to book'],
+        ].map(([label, value, detail]) => <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200" key={label}><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{isLoading ? '—' : value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div>)}
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <div className="flex items-center justify-between"><div><h3 className="text-lg font-semibold text-slate-900">Upcoming appointments</h3><p className="mt-1 text-sm text-slate-500">Your next scheduled customer visits.</p></div><a className="text-sm font-semibold text-indigo-600" href="/appointments">View all</a></div>
-          <div className="mt-5 grid gap-3">{upcoming.length ? upcoming.map((appointment) => <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3" key={appointment.id}><div><p className="font-semibold text-slate-800">{new Date(appointment.startTime).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">{appointment.status.replace('_', ' ')}</p></div><span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">Scheduled</span></div>) : <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No upcoming appointments yet.</p>}</div>
+          <div className="mt-5 grid gap-3">{isLoading ? <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">Loading appointments...</p> : summary.data?.nextAppointments.length ? summary.data.nextAppointments.map((appointment) => <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3" key={appointment.id}><div><p className="font-semibold text-slate-800">{new Date(appointment.startTime).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">{appointment.status.replace('_', ' ')}</p></div><span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">Scheduled</span></div>) : <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No upcoming appointments yet.</p>}</div>
         </section>
         <section className="rounded-2xl bg-indigo-600 p-6 text-white shadow-sm">
           <p className="text-sm font-semibold text-indigo-200">Next steps</p><h3 className="mt-2 text-xl font-bold">Make your workspace bookable</h3><p className="mt-2 text-sm leading-6 text-indigo-100">Add your team, services, and business hours so appointments can be managed smoothly.</p>
@@ -156,6 +153,7 @@ export const router = createBrowserRouter([
   { path: '/register', element: <RegisterPage /> },
   { path: '/recovery', element: <RecoveryPage /> },
   { path: '/book/:tenantId', element: <PublicBookingPage /> },
+  { path: '/book/:tenantId/manage/:token', element: <PublicBookingManagePage /> },
   { path: '/onboarding', element: <OnboardingRoute /> },
   { path: '/platform/support', element: <PlatformSupportRoute /> },
   { path: '/platform/settings', element: <PlatformSettingsRoute /> },
@@ -176,6 +174,7 @@ export const router = createBrowserRouter([
       { path: 'schedule', element: <RoleRoute roles={['TENANT_ADMIN', 'MANAGER']}><SchedulePage /></RoleRoute> },
       { path: 'reports', element: <RoleRoute roles={['TENANT_ADMIN', 'MANAGER', 'STAFF']}><ReportsPage /></RoleRoute> },
       { path: 'billing', element: <RoleRoute roles={['TENANT_ADMIN']}><BillingPage /></RoleRoute> },
+      { path: 'support-access', element: <RoleRoute roles={['TENANT_ADMIN']}><SupportAccessConsentPage /></RoleRoute> },
       { index: true, element: <Navigate to="/dashboard" replace /> },
     ],
   },

@@ -16,4 +16,8 @@ message AppointmentEvent {
   string end_time = 12;
   string status = 13;
   string notes = 14;
+  string event_id = 15;
+  string event_timestamp = 16;
+  int32 event_version = 17;
+  string correlation_id = 18;
 }

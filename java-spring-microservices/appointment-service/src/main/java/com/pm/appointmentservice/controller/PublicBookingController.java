@@ -25,16 +25,38 @@ public class PublicBookingController {
 
   @GetMapping("/{tenant}/slots")
   public List<PublicSlotDTO> slots(@PathVariable String tenant, @RequestParam LocalDate date,
-      @RequestParam UUID serviceId, @RequestParam UUID staffId) {
+      @RequestParam UUID serviceId, @RequestParam UUID staffId,
+      @RequestParam(defaultValue = "UTC") String timezone) {
     requireBooking(tenant);
-    return booking.slots(tenant, date, serviceId, staffId);
+    return booking.slots(tenant, date, serviceId, staffId, timezone);
   }
 
   @PostMapping("/{tenant}/appointments")
   public AppointmentResponseDTO book(@PathVariable String tenant,
-      @Valid @RequestBody PublicBookingRequestDTO input) {
+      @Valid @RequestBody PublicBookingRequestDTO input,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
     requireBooking(tenant);
-    return booking.book(tenant, input);
+    return booking.book(tenant, input, idempotencyKey);
+  }
+
+  @GetMapping("/{tenant}/appointments/manage/{token}")
+  public AppointmentResponseDTO manage(@PathVariable String tenant, @PathVariable String token) {
+    requireBooking(tenant);
+    return booking.getByManagementToken(tenant, token);
+  }
+
+  @PostMapping("/{tenant}/appointments/manage/{token}/cancel")
+  public AppointmentResponseDTO cancel(@PathVariable String tenant, @PathVariable String token) {
+    requireBooking(tenant);
+    return booking.cancelByManagementToken(tenant, token);
+  }
+
+  @PostMapping("/{tenant}/appointments/manage/{token}/reschedule")
+  public AppointmentResponseDTO reschedule(@PathVariable String tenant, @PathVariable String token,
+      @Valid @RequestBody AppointmentTimeChangeDTO input,
+      @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
+    requireBooking(tenant);
+    return booking.rescheduleByManagementToken(tenant, token, input, timezone);
   }
 
   private void requireBooking(String tenant) {

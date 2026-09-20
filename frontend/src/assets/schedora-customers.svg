@@ -1,0 +1,30 @@
+<svg width="720" height="520" viewBox="0 0 720 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="520" rx="24" fill="#15213A"/>
+  <text x="40" y="58" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="23" font-weight="700">Customer directory</text>
+  <text x="40" y="84" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="12">Keep every relationship ready for the next visit.</text>
+  <rect x="40" y="112" width="420" height="42" rx="9" fill="#1B2946" stroke="#91A1C2" stroke-opacity=".2"/>
+  <text x="60" y="138" fill="#8F9DB6" font-family="Arial, sans-serif" font-size="12">Search customers, email, phone...</text>
+  <rect x="476" y="112" width="204" height="42" rx="9" fill="#71809F" fill-opacity=".25"/>
+  <text x="535" y="138" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="12" font-weight="700">+ Add customer</text>
+  <rect x="40" y="180" width="640" height="72" rx="12" fill="#1B2946"/>
+  <circle cx="76" cy="216" r="20" fill="#71809F" fill-opacity=".35"/>
+  <text x="69" y="221" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="13" font-weight="700">AS</text>
+  <text x="112" y="210" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="13" font-weight="700">Amelia Stone</text>
+  <text x="112" y="230" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">amelia@example.com · VIP</text>
+  <rect x="570" y="204" width="82" height="25" rx="12" fill="#71809F" fill-opacity=".3"/>
+  <text x="590" y="221" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="10" font-weight="700">8 visits</text>
+  <rect x="40" y="266" width="640" height="72" rx="12" fill="#1B2946"/>
+  <circle cx="76" cy="302" r="20" fill="#71809F" fill-opacity=".35"/>
+  <text x="69" y="307" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="13" font-weight="700">NW</text>
+  <text x="112" y="296" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="13" font-weight="700">Noah Williams</text>
+  <text x="112" y="316" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">noah@example.com · Regular</text>
+  <rect x="570" y="290" width="82" height="25" rx="12" fill="#71809F" fill-opacity=".3"/>
+  <text x="590" y="307" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="10" font-weight="700">4 visits</text>
+  <rect x="40" y="352" width="640" height="72" rx="12" fill="#1B2946"/>
+  <circle cx="76" cy="388" r="20" fill="#71809F" fill-opacity=".35"/>
+  <text x="69" y="393" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="13" font-weight="700">MR</text>
+  <text x="112" y="382" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="13" font-weight="700">Maya Roberts</text>
+  <text x="112" y="402" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">maya@example.com · New customer</text>
+  <rect x="570" y="376" width="82" height="25" rx="12" fill="#71809F" fill-opacity=".3"/>
+  <text x="590" y="393" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="10" font-weight="700">1 visit</text>
+</svg>

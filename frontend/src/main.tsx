@@ -6,6 +6,7 @@ import { useEffect } from 'react'
 import { queryClient } from './app/queryClient'
 import { router } from './app/router'
 import { useAuthStore } from './features/auth/authStore'
+import { ToastProvider } from './shared/components/ToastProvider'
 import './index.css'
 
 function AppBootstrap() {
@@ -15,7 +16,7 @@ function AppBootstrap() {
     void hydrate()
   }, [hydrate])
 
-  return <RouterProvider router={router} />
+  return <ToastProvider><RouterProvider router={router} /></ToastProvider>
 }
 
 createRoot(document.getElementById('root')!).render(

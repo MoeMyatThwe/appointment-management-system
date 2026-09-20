@@ -21,6 +21,10 @@ public class UserService {
     return userRepository.findByEmail(email);
   }
 
+  public Optional<User> findById(UUID id) {
+    return userRepository.findById(id);
+  }
+
   public User save(User user) {
     return userRepository.save(user);
   }
@@ -58,6 +62,20 @@ public class UserService {
     User user = userRepository.findByEmail(email)
         .orElseThrow(() -> new IllegalArgumentException("User not found"));
     return toWorkspaceProfile(user);
+  }
+
+  public String getTenantTimezone(String tenantId) {
+    return userRepository.findFirstByTenantId(tenantId)
+        .map(User::getTimezone)
+        .filter(timezone -> timezone != null && !timezone.isBlank())
+        .orElse("UTC");
+  }
+
+  public String getTenantName(String tenantId) {
+    return userRepository.findFirstByTenantId(tenantId)
+        .map(User::getTenantName)
+        .filter(name -> name != null && !name.isBlank())
+        .orElse("Book an appointment");
   }
 
   public WorkspaceProfileDTO updateWorkspace(String email, WorkspaceProfileDTO profile) {

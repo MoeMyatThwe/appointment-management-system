@@ -13,11 +13,14 @@ import reactor.util.retry.Retry;
 import java.time.Duration;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.server.ServerWebExchange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class JwtValidationGatewayFilterFactory extends
     AbstractGatewayFilterFactory<Object> {
 
+  private static final Logger log = LoggerFactory.getLogger(JwtValidationGatewayFilterFactory.class);
   private final WebClient webClient;
 
   public JwtValidationGatewayFilterFactory(WebClient.Builder webClientBuilder,
@@ -52,7 +55,9 @@ public class JwtValidationGatewayFilterFactory extends
             String tenantId = response.getHeaders().getFirst("X-Tenant-ID");
             String role = response.getHeaders().getFirst("X-User-Role");
             String email = response.getHeaders().getFirst("X-User-Email");
-            if (tenantId == null || role == null || email == null) {
+            String timezone = response.getHeaders().getFirst("X-Timezone");
+            if (tenantId == null || role == null || email == null || timezone == null) {
+              log.warn("JWT validation returned incomplete identity headers");
               exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
               return exchange.getResponse().setComplete();
             }
@@ -61,11 +66,13 @@ public class JwtValidationGatewayFilterFactory extends
                   headers.set("X-Tenant-ID", tenantId);
                   headers.set("X-User-Role", role);
                   headers.set("X-User-Email", email);
+                  headers.set("X-Timezone", timezone);
                 }))
                 .build();
             return chain.filter(enrichedExchange);
           })
           .onErrorResume(error -> {
+            log.warn("JWT validation request failed: {}", error.getMessage());
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
           });

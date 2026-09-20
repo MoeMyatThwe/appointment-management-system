@@ -15,6 +15,53 @@ terminology.
 
 **Register → Onboard → Add staff/services → Set hours → Add customers → Book appointments → Take payments → Share booking link → Review reports.**
 
+Public booking links include Back and Home navigation so visitors are not
+trapped on a standalone route. The page resolves and displays the workspace
+name through the internal tenant metadata contract; the tenant UUID remains
+only in the URL and API requests.
+
+The booking experience follows a three-step customer flow:
+
+1. Select a service, preferred team member, and future date.
+2. Review live availability in the visitor's local timezone.
+3. Enter contact details, optional notes, and consent to be contacted, then
+   review the selected appointment before submitting.
+
+The page also handles unavailable catalogs, empty service/team configuration,
+failed availability requests, stale slots, navigation between steps, and
+pending confirmation messaging. This keeps the public page usable for real
+customers instead of presenting all controls at once without context.
+
+### Route and tenant security
+
+The public booking UUID is an opaque, randomly generated tenant locator. It is
+not treated as a secret or authorization token, and the public API exposes only
+booking-catalog data after checking that online booking is enabled. A slug can
+improve branding, but it does not replace authorization and may be easier to
+enumerate.
+
+All private workspace API routes require gateway JWT validation, tenant
+identity headers, and backend role authorization. This includes dashboard
+summaries, reports and exports, appointment lists/search, customer history,
+staff history, and catalog reads. React route guards improve navigation but
+must not be relied on for security because API requests can be made directly.
+
+Appointment writes validate all related records within the tenant before
+saving; a request cannot move a booking to another workspace by supplying
+foreign record IDs or a different business ID. Public slot generation excludes
+staff time-off. Payment reads and checkout require business authorization,
+while refunds require manager authorization.
+
+### Authentication and session lifecycle
+
+Access tokens expire after a short configurable lifetime
+(`JWT_ACCESS_TOKEN_MINUTES`, default 15 minutes). Login and registration return
+an opaque refresh token whose SHA-256 hash is stored in the auth database.
+Refresh rotates the token, logout revokes the presented token, and password
+recovery revokes all sessions for the account. Gateway validation checks the
+current user record, account status, tenant, and role rather than trusting
+stale role or tenant claims from an otherwise valid token.
+
 ### Who uses the product?
 
 There are two different roles:
@@ -91,6 +138,28 @@ workflow before production use. Exporting those operational records should
 also be added to the service-level data export contract.
 
 ### SaaS plans and billing
+
+### Account recovery email
+
+Account recovery creates a one-time token that expires after 15 minutes and
+sends it through the auth service's configured SMTP provider. Local development
+requires these values in the ignored `.env` file used by Docker Compose:
+
+```text
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=your-sender@example.com
+MAIL_PASSWORD=your-smtp-password
+RECOVERY_MAIL_FROM=your-sender@example.com
+RECOVERY_FRONTEND_URL=http://localhost:5174/recovery
+```
+
+For Gmail, use an App Password rather than the normal account password. The
+recovery endpoint returns an error when SMTP is not configured or delivery
+fails; it does not claim that an email was sent.
+
+The local Compose setup also accepts `MAIL_APP_PASSWORD` as an alias for
+`MAIL_PASSWORD` and uses `MAIL_USERNAME` as the sender address by default.
 
 The platform includes these subscription plans:
 
@@ -215,7 +284,17 @@ Use the sidebar in this order:
 2. **Operations → Services**: Add services, duration, price, and color.
 3. **Operations → Rooms & resources**: Add rooms, stations, equipment, or
    other bookable resources when needed.
-4. **Settings → Business hours**: Set open days, opening times, breaks, and
+4. **Settings → Business hours**: Set open days, opening times, and breaks. Use
+   **Quick apply** to select weekdays (or any group of days) and apply one
+   schedule in a few clicks; individual day rows remain available for exceptions.
+
+### Large-list behavior
+
+Customer, staff, service, resource, platform tenant, and platform audit
+directories use bounded server-side pages with search, filters, sorting, and
+total-result counts. The frontend requests only the current page, while the
+backend applies the query before returning results. This prevents large
+workspaces from downloading or rendering thousands of records in one view.
    holidays.
 5. **Customers → Customer directory**: Add existing customers, contact
    details, notes, groups, and tags.
@@ -234,6 +313,11 @@ booking for the same staff member, customer, or resource.
 6. Use **Reschedule** when the time changes.
 7. Use **Cancel** when the visit is cancelled. Cancelled appointments do not
    block future availability.
+
+Removing a staff member archives the staff record instead of deleting it, so
+historical appointments and reports retain the original team member. Archived
+staff are excluded from new appointments and public booking availability, but
+can be restored from the staff editor.
 
 Appointment statuses follow a controlled lifecycle:
 
@@ -273,6 +357,12 @@ business tenant.
    balance.
 5. Keep the receipt number for the customer’s records.
 
+Payment amounts and status are calculated by the service; client requests cannot
+mark a payment as paid, change its currency, overpay an appointment, or refund
+the same payment twice. Payment writes are serialized per appointment, provider
+session and intent identifiers are unique, and Stripe webhook signatures and
+event IDs are verified before payment state is changed.
+
 Stripe Checkout uses test mode when `STRIPE_SECRET_KEY` is configured in the
 local `.env` file. Subscription checkout uses the same secret, while signed
 webhook synchronization additionally requires `STRIPE_WEBHOOK_SECRET`.
@@ -284,6 +374,13 @@ The owner can select **Open public booking page** from the dashboard or use:
 ```text
 http://localhost:5173/book/{tenantId}
 ```
+
+After a booking request is submitted, the confirmation page provides a
+tenant-scoped, expiring management link. The customer can use that link to view
+the request, reschedule it to another available slot, or cancel it. Online
+changes are limited to pending or confirmed appointments and close two hours
+before the appointment. The link is an unguessable capability token; only its
+hash is stored by the service.
 
 A customer can then:
 
@@ -346,6 +443,12 @@ Location: `frontend`
 - Permanent appointment deletion with confirmation
 - Separate loading states for login, list loading, saves, and record actions
 - API error banners and session-expiration handling
+- Role-aware animated workspace guide with replay from **Help & guide**
+- Guided spotlights for appointment creation, filtering, details, calendar booking,
+  customer history, staff availability, services, resources, business hours,
+  billing, reports, support access, and public booking
+- Responsive sidebar with persistent desktop collapse/expand state, navigation
+  icons, and tooltips in icon-only mode
 
 Frontend commands:
 
@@ -401,6 +504,29 @@ owner, and the new workspace is isolated from all other businesses.
 New workspace owners are guided through a short setup wizard for business
 type, phone number, time zone, and currency before entering the dashboard.
 
+After the setup wizard, an empty workspace automatically receives an in-app
+workspace guide. The guide navigates to the relevant page, spotlights the
+primary control, and explains the next action. It includes:
+
+- Creating, filtering, and reviewing appointments
+- Booking from the calendar
+- Adding customers and reviewing appointment history
+- Adding staff, recording staff time off, and creating services
+- Adding rooms and other bookable resources
+- Saving business hours and adding holiday closures
+- Reviewing subscription plans and exporting reports
+- Reviewing support-access requests and sharing the public booking page
+
+The guide is role-aware. It omits billing and support steps for users without
+tenant-admin permission and skips record-specific steps when no record exists.
+Users can skip the guide or select **Help & guide** in the sidebar to replay it.
+
+The desktop sidebar supports a compact icon-only mode. Use the chevron in the
+sidebar header to collapse or expand it; the preference is stored in browser
+local storage. On small screens, use **Menu** to open the drawer and the close
+button to dismiss it. Non-clickable section headings are intentionally omitted
+from the sidebar to keep navigation focused on actions.
+
 From the dashboard, use **Staff** for team members, **Services** for bookable
 offerings with duration, price, and calendar color, and **Rooms & Resources**
 for rooms, stations, equipment, or locations. All records are automatically
@@ -415,9 +541,38 @@ start must be before the end, both times must be on the same business day, and
 appointments touching a configured holiday are rejected. Invalid date-time
 values return a clear validation response instead of being stored.
 
-Use **Calendar** for a weekly visual schedule. The server prevents overlapping
-appointments for the same staff member, customer, or selected room/resource.
-Cancelled appointments do not block future availability.
+Appointment creation and calendar booking use async server-search comboboxes
+for customers, staff, services, and resources. Search input is debounced,
+results are bounded to a small page, and the same reusable control is used for
+appointment filters. This keeps booking responsive when a workspace contains
+thousands of catalog records.
+
+Core list screens use shared loading, retryable error, and empty-state
+feedback. Appointment, rescheduling, status, and payment mutations show
+consistent success or error toast notifications so users always know whether
+an action completed.
+
+Appointment times are displayed and edited in the workspace timezone. The
+frontend converts local business time to UTC for API requests and validates
+that required ranges are complete and ordered before submitting. Core dialogs
+support Escape-to-close and expose labelled dialog semantics for assistive
+technology.
+
+Customer appointment history and staff appointment/time-off history are
+server-paginated with a bounded page size. This keeps detail dialogs responsive
+for customers or staff with thousands of records and avoids loading complete
+histories into the browser. Staff history presents appointments and time off as
+separate paginated sections.
+
+Use **Calendar** for a weekly visual schedule. The calendar queries only the
+visible day, week, month, or agenda range and renders at most 100 matching
+appointments at once. If the range contains more results, an overflow notice
+links to the full filtered appointment list instead of attempting to render
+thousands of cards. Small screens default to a mobile-friendly agenda grouped
+by day, while day/week/month views remain available when needed. The server
+prevents overlapping appointments for the same staff member, customer, or
+selected room/resource. Cancelled appointments do not block future
+availability.
 
 To stop the stack, press `Ctrl+C` or run:
 
@@ -523,7 +678,12 @@ Production uses only the shared schema migrations. Hibernate runs with
 - Cancellation publishes `APPOINTMENT_CANCELLED`.
 - Billing account creation uses gRPC.
 - gRPC calls have bounded deadlines and retries.
-- Kafka publishing has bounded timeouts and retries.
+- Appointment mutations write their Protobuf events to the appointment
+  service's transactional outbox in the same database transaction as the
+  appointment change. A scheduled dispatcher publishes pending outbox records
+  to Kafka with bounded timeouts and retries, preserving events across Kafka
+  outages. Consumers should remain idempotent because a dispatcher restart can
+  redeliver an event after Kafka acknowledgement.
 - Analytics consumes appointment events using a single-broker-safe Kafka setup.
 - Notification service consumes lifecycle events and schedules reminders.
 - Reminder timing is configured with `NOTIFICATION_REMINDER_MINUTES_BEFORE`.
@@ -658,7 +818,8 @@ history and records are restricted to the authenticated business tenant.
 Each appointment can have a tenant-scoped payment record. Owners and staff can
 record cash, card, transfer, or other payments, including deposits. The system
 calculates the service total, balance, payment status, and receipt number.
-Payment amounts cannot exceed the appointment total. SaaS subscription billing
+Payment amounts must be positive and cannot exceed the appointment total;
+payment status is derived from the resulting balance. SaaS subscription billing
 is managed separately from appointment payments under Settings → Subscription
 & billing.
 

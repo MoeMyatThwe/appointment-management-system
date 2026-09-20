@@ -8,14 +8,21 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.time.Instant;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.pm.authservice.repository.PlatformTenantProjection;
+import com.pm.authservice.repository.RefreshTokenRepository;
 
 @Service
 public class PlatformAdminService {
   private final UserRepository users;
   private final SubscriptionPlanService plans;
-  public PlatformAdminService(UserRepository users, SubscriptionPlanService plans) {
+  private final RefreshTokenRepository refreshTokens;
+  public PlatformAdminService(UserRepository users, SubscriptionPlanService plans,
+      RefreshTokenRepository refreshTokens) {
     this.users = users;
     this.plans = plans;
+    this.refreshTokens = refreshTokens;
   }
 
   public List<PlatformTenantDTO> tenants() {
@@ -24,11 +31,20 @@ public class PlatformAdminService {
         .values().stream().map(this::toTenant).toList();
   }
 
+  public Page<PlatformTenantDTO> tenants(Pageable pageable, String search, String status, String plan) {
+    return users.searchPlatformTenants(
+        search == null ? "" : search.trim(),
+        status == null || status.isBlank() ? "ALL" : status,
+        plan == null || plan.isBlank() ? "ALL" : plan,
+        pageable).map(this::toTenant);
+  }
+
   public PlatformTenantDTO setStatus(String tenantId, boolean active) {
     List<User> tenantUsers = users.findAllByTenantId(tenantId);
     if (tenantUsers.isEmpty()) throw new IllegalArgumentException("Tenant not found");
     tenantUsers.forEach(user -> { user.setActive(active); user.setAccountStatus(active ? "ACTIVE" : "SUSPENDED"); });
     users.saveAll(tenantUsers);
+    if (!active) tenantUsers.forEach(user -> refreshTokens.deleteByUserId(user.getId()));
     return toTenant(tenantUsers);
   }
 
@@ -41,6 +57,7 @@ public class PlatformAdminService {
       user.setDeletionRequestedAt(Instant.now()); user.setDeletionDueAt(due);
     });
     users.saveAll(tenantUsers);
+    tenantUsers.forEach(user -> refreshTokens.deleteByUserId(user.getId()));
     return toTenant(tenantUsers);
   }
 
@@ -88,5 +105,12 @@ public class PlatformAdminService {
         owner.getAccountStatus(), owner.getSubscriptionPlan(), owner.getSubscriptionStatus(),
         owner.getDeletionDueAt(),
         users.stream().allMatch(User::isActive), owner.isOnboardingCompleted());
+  }
+
+  private PlatformTenantDTO toTenant(PlatformTenantProjection tenant) {
+    return new PlatformTenantDTO(tenant.getTenantId(), tenant.getTenantName(), tenant.getOwnerEmail(),
+        tenant.getBusinessType(), tenant.getTimezone(), tenant.getCurrency(), tenant.getAccountStatus(),
+        tenant.getSubscriptionPlan(), tenant.getSubscriptionStatus(), tenant.getDeletionDueAt(),
+        tenant.isActive(), tenant.isOnboardingCompleted());
   }
 }

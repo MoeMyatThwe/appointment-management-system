@@ -32,6 +32,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import com.pm.appointmentservice.security.AccessPolicy;
+import com.pm.appointmentservice.dto.DashboardSummaryDTO;
+import com.pm.appointmentservice.dto.ReportSummaryDTO;
+import com.pm.appointmentservice.service.ReportingService;
 
 @RestController
 @RequestMapping("/appointments")
@@ -40,15 +43,59 @@ public class AppointmentController {
 
   private static final Logger auditLog = LoggerFactory.getLogger("AUDIT");
   private final AppointmentService appointmentService;
+  private final ReportingService reportingService;
 
-  public AppointmentController(AppointmentService appointmentService) {
+  public AppointmentController(AppointmentService appointmentService, ReportingService reportingService) {
     this.appointmentService = appointmentService;
+    this.reportingService = reportingService;
+  }
+
+  @GetMapping("/dashboard/summary")
+  public ResponseEntity<DashboardSummaryDTO> dashboardSummary(
+      @RequestHeader("X-Tenant-ID") String tenantId,
+      @RequestHeader("X-User-Role") String role,
+      @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
+    AccessPolicy.requireBusinessUser(role);
+    return ResponseEntity.ok(reportingService.dashboard(tenantId, timezone));
+  }
+
+  @GetMapping("/reports/summary")
+  public ResponseEntity<ReportSummaryDTO> reportSummary(
+      @RequestHeader("X-Tenant-ID") String tenantId,
+      @RequestHeader("X-User-Role") String role,
+      @RequestParam(defaultValue = "") String from,
+      @RequestParam(defaultValue = "") String to) {
+    AccessPolicy.requireBusinessUser(role);
+    return ResponseEntity.ok(reportingService.report(tenantId, from, to));
+  }
+
+  @GetMapping(value = "/reports/export/appointments", produces = "text/csv")
+  public ResponseEntity<String> exportAppointments(
+      @RequestHeader("X-Tenant-ID") String tenantId,
+      @RequestHeader("X-User-Role") String role,
+      @RequestParam(defaultValue = "") String from,
+      @RequestParam(defaultValue = "") String to) {
+    AccessPolicy.requireBusinessUser(role);
+    return ResponseEntity.ok()
+        .header("Content-Disposition", "attachment; filename=\"appointments.csv\"")
+        .body(reportingService.exportAppointments(tenantId, from, to));
+  }
+
+  @GetMapping(value = "/reports/export/customers", produces = "text/csv")
+  public ResponseEntity<String> exportCustomers(@RequestHeader("X-Tenant-ID") String tenantId,
+      @RequestHeader("X-User-Role") String role) {
+    AccessPolicy.requireBusinessUser(role);
+    return ResponseEntity.ok()
+        .header("Content-Disposition", "attachment; filename=\"customers.csv\"")
+        .body(reportingService.exportCustomers(tenantId));
   }
 
   @GetMapping
   @Operation(summary = "Get Appointments")
   public ResponseEntity<List<AppointmentResponseDTO>> getAppointments(
-      @RequestHeader("X-Tenant-ID") String tenantId) {
+      @RequestHeader("X-Tenant-ID") String tenantId,
+      @RequestHeader("X-User-Role") String role) {
+    AccessPolicy.requireBusinessUser(role);
     List<AppointmentResponseDTO> appointments = appointmentService.getAppointments(tenantId);
     return ResponseEntity.ok().body(appointments);
   }
@@ -57,10 +104,12 @@ public class AppointmentController {
   @Operation(summary = "Search and filter appointments")
   public ResponseEntity<?> searchAppointments(
       @RequestHeader("X-Tenant-ID") String tenantId,
+      @RequestHeader("X-User-Role") String role,
       @RequestParam(defaultValue = "") String search,
       @RequestParam(defaultValue = "") String from,
       @RequestParam(defaultValue = "") String to,
       @RequestParam(defaultValue = "") String status,
+      @RequestParam(defaultValue = "") String paymentStatus,
       @RequestParam(defaultValue = "") String staffId,
       @RequestParam(defaultValue = "") String customerId,
       @RequestParam(defaultValue = "") String serviceId,
@@ -69,6 +118,7 @@ public class AppointmentController {
       @RequestParam(defaultValue = "25") int size,
       @RequestParam(defaultValue = "startTime") String sortBy,
       @RequestParam(defaultValue = "asc") String direction) {
+    AccessPolicy.requireBusinessUser(role);
     if (page < 0 || size < 1 || size > 100) {
       return ResponseEntity.badRequest()
           .body("page must be >= 0 and size must be between 1 and 100");
@@ -85,7 +135,7 @@ public class AppointmentController {
     }
     Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
     return ResponseEntity.ok(appointmentService.searchAppointments(tenantId, search, from, to,
-        status, staffId, customerId, serviceId, resourceId, pageable));
+        status, paymentStatus, staffId, customerId, serviceId, resourceId, pageable));
   }
 
   @PostMapping
@@ -95,13 +145,14 @@ public class AppointmentController {
       @RequestBody AppointmentRequestDTO appointmentRequestDTO,
       @RequestHeader("X-Tenant-ID") String tenantId,
       @RequestHeader("X-User-Role") String role,
-      @RequestHeader("X-User-Email") String email) {
+      @RequestHeader("X-User-Email") String email,
+      @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
     requireWriteRole(role);
     auditLog.info("event=APPOINTMENT_CREATE tenantId={} user={} customerId={}",
         tenantId, email, appointmentRequestDTO.getCustomerId());
 
     AppointmentResponseDTO appointmentResponseDTO = appointmentService.createAppointment(
-        appointmentRequestDTO, tenantId);
+        appointmentRequestDTO, tenantId, timezone);
 
     return ResponseEntity.ok().body(appointmentResponseDTO);
   }
@@ -112,13 +163,14 @@ public class AppointmentController {
       @Validated({Default.class}) @RequestBody AppointmentRequestDTO appointmentRequestDTO,
       @RequestHeader("X-Tenant-ID") String tenantId,
       @RequestHeader("X-User-Role") String role,
-      @RequestHeader("X-User-Email") String email) {
+      @RequestHeader("X-User-Email") String email,
+      @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
     requireWriteRole(role);
     auditLog.info("event=APPOINTMENT_UPDATE tenantId={} user={} appointmentId={}",
         tenantId, email, id);
 
     AppointmentResponseDTO appointmentResponseDTO = appointmentService.updateAppointment(id,
-        appointmentRequestDTO, tenantId);
+        appointmentRequestDTO, tenantId, email, timezone);
 
     return ResponseEntity.ok().body(appointmentResponseDTO);
   }
@@ -128,11 +180,12 @@ public class AppointmentController {
   public ResponseEntity<Void> deleteAppointment(@PathVariable UUID id,
       @RequestHeader("X-Tenant-ID") String tenantId,
       @RequestHeader("X-User-Role") String role,
-      @RequestHeader("X-User-Email") String email) {
+      @RequestHeader("X-User-Email") String email,
+      @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
     requireWriteRole(role);
     auditLog.info("event=APPOINTMENT_DELETE tenantId={} user={} appointmentId={}",
         tenantId, email, id);
-    appointmentService.deleteAppointment(id, tenantId);
+    appointmentService.deleteAppointment(id, tenantId, email);
     return ResponseEntity.noContent().build();
   }
 
@@ -142,12 +195,13 @@ public class AppointmentController {
       @Validated @RequestBody AppointmentTimeChangeDTO timeChange,
       @RequestHeader("X-Tenant-ID") String tenantId,
       @RequestHeader("X-User-Role") String role,
-      @RequestHeader("X-User-Email") String email) {
+      @RequestHeader("X-User-Email") String email,
+      @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
     requireWriteRole(role);
     auditLog.info("event=APPOINTMENT_RESCHEDULE tenantId={} user={} appointmentId={}",
         tenantId, email, id);
     return ResponseEntity.ok(
-        appointmentService.rescheduleAppointment(id, timeChange, tenantId));
+        appointmentService.rescheduleAppointment(id, timeChange, tenantId, timezone));
   }
 
   @PatchMapping("/{id}/status")
@@ -161,7 +215,7 @@ public class AppointmentController {
     requireWriteRole(role);
     auditLog.info("event=APPOINTMENT_STATUS_CHANGE tenantId={} user={} appointmentId={} status={}",
         tenantId, email, id, statusChange.status());
-    return ResponseEntity.ok(appointmentService.changeStatus(id, statusChange, tenantId));
+    return ResponseEntity.ok(appointmentService.changeStatus(id, statusChange, tenantId, email));
   }
 
   @PatchMapping("/{id}/cancel")
@@ -173,7 +227,8 @@ public class AppointmentController {
     requireWriteRole(role);
     auditLog.info("event=APPOINTMENT_CANCEL tenantId={} user={} appointmentId={}",
         tenantId, email, id);
-    return ResponseEntity.ok(appointmentService.cancelAppointment(id, tenantId));
+    return ResponseEntity.ok(appointmentService.changeStatus(id,
+        new AppointmentStatusChangeDTO("CANCELLED", null), tenantId, email));
   }
 
   private void requireWriteRole(String role) {

@@ -11,6 +11,7 @@ public class Staff {
   @Column(nullable = false) private String name;
   private String email;
   private String role;
+  @Column(nullable = false) private boolean active = true;
   public UUID getId() { return id; }
   public String getTenantId() { return tenantId; }
   public void setTenantId(String v) { tenantId = v; }
@@ -20,4 +21,6 @@ public class Staff {
   public void setEmail(String v) { email = v; }
   public String getRole() { return role; }
   public void setRole(String v) { role = v; }
+  public boolean isActive() { return active; }
+  public void setActive(boolean v) { active = v; }
 }

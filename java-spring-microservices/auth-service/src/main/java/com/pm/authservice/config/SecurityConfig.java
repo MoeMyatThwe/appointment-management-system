@@ -21,7 +21,7 @@ public class SecurityConfig {
         .formLogin(AbstractHttpConfigurer::disable)
         .httpBasic(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(authorize -> authorize
-            .requestMatchers("/login", "/register", "/validate", "/me", "/workspace", "/plans", "/tenant-flags", "/recovery/**", "/subscription/**", "/support-access/**", "/stripe/webhook", "/internal/**", "/platform/**", "/v3/api-docs/**", "/swagger-ui/**",
+            .requestMatchers("/login", "/register", "/validate", "/me", "/workspace", "/refresh", "/logout", "/plans", "/tenant-flags", "/recovery/**", "/subscription/**", "/support-access/**", "/stripe/webhook", "/internal/**", "/platform/**", "/v3/api-docs/**", "/swagger-ui/**",
                 "/swagger-ui.html", "/actuator/health", "/actuator/info",
                 "/actuator/prometheus").permitAll()
             .anyRequest().authenticated());

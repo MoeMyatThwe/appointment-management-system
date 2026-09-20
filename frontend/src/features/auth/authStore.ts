@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { clearSession, getAccessToken, getRefreshToken, setSession } from './authStorage'
 import type { CurrentUser } from './types'
 import { fetchCurrentUser, login as loginRequest, logout as logoutRequest } from './authApi'
+import { getApiErrorMessage } from '../../shared/api/apiError'
 
 interface LoginInput {
   email: string
@@ -52,7 +53,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         user: null,
         isAuthenticated: false,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Login failed',
+        error: getApiErrorMessage(error, 'login'),
       })
       throw error
     }

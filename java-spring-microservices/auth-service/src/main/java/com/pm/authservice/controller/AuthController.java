@@ -2,6 +2,7 @@ package com.pm.authservice.controller;
 
 import com.pm.authservice.dto.LoginRequestDTO;
 import com.pm.authservice.dto.LoginResponseDTO;
+import com.pm.authservice.dto.AuthSessionDTO;
 import com.pm.authservice.dto.CurrentUserResponseDTO;
 import com.pm.authservice.dto.RegisterRequestDTO;
 import com.pm.authservice.dto.WorkspaceProfileDTO;
@@ -33,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import java.util.UUID;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -81,14 +84,35 @@ public class AuthController {
   }
 
   @PostMapping("/recovery/request")
-  public ResponseEntity<RecoveryResponseDTO> recoveryRequest(
+  public ResponseEntity<?> recoveryRequest(
       @RequestBody RecoveryRequestDTO request) {
-    return ResponseEntity.ok(recoveryService.request(request.email()));
+    try {
+      return ResponseEntity.ok(recoveryService.request(request.email()));
+    } catch (IllegalStateException error) {
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .body(Map.of("message", error.getMessage()));
+    }
   }
 
   @PostMapping("/recovery/reset")
   public ResponseEntity<Void> recoveryReset(@RequestBody RecoveryResetDTO request) {
     recoveryService.reset(request.token(), request.newPassword());
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/refresh")
+  public ResponseEntity<?> refresh(@RequestBody Map<String, String> request) {
+    try {
+      AuthSessionDTO session = authService.refresh(request.get("refreshToken"));
+      return ResponseEntity.ok(new LoginResponseDTO(session.accessToken(), session.refreshToken(), session.tenantId()));
+    } catch (IllegalArgumentException error) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", error.getMessage()));
+    }
+  }
+
+  @PostMapping("/logout")
+  public ResponseEntity<Void> logout(@RequestBody(required = false) Map<String, String> request) {
+    authService.logout(request == null ? null : request.get("refreshToken"));
     return ResponseEntity.noContent().build();
   }
 
@@ -112,7 +136,9 @@ public class AuthController {
     }
 
     User user = userOptional.get();
-    if (!user.isActive()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    if (!user.isActive() || !"ACTIVE".equalsIgnoreCase(user.getAccountStatus())) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
     return ResponseEntity.ok(new CurrentUserResponseDTO(
         user.getId().toString(),
         user.getTenantId(),
@@ -120,7 +146,26 @@ public class AuthController {
         user.getEmail(),
         user.getRole(),
         user.getTenantName(),
+        user.getTimezone() == null ? "UTC" : user.getTimezone(),
         user.isOnboardingCompleted()));
+  }
+
+  @GetMapping("/internal/tenants/{tenantId}/timezone")
+  public ResponseEntity<String> tenantTimezone(@PathVariable String tenantId,
+      @RequestHeader(value = "X-Internal-Service-Key", required = false) String serviceKey) {
+    if (internalServiceKey.isBlank() || !internalServiceKey.equals(serviceKey)) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
+    return ResponseEntity.ok(userService.getTenantTimezone(tenantId));
+  }
+
+  @GetMapping("/internal/tenants/{tenantId}/name")
+  public ResponseEntity<String> tenantName(@PathVariable String tenantId,
+      @RequestHeader(value = "X-Internal-Service-Key", required = false) String serviceKey) {
+    if (internalServiceKey.isBlank() || !internalServiceKey.equals(serviceKey)) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
+    return ResponseEntity.ok(userService.getTenantName(tenantId));
   }
 
   @Operation(summary = "Get the current workspace profile")
@@ -145,16 +190,16 @@ public class AuthController {
   public ResponseEntity<LoginResponseDTO> login(
       @RequestBody LoginRequestDTO loginRequestDTO) {
 
-    Optional<String> tokenOptional = authService.authenticate(loginRequestDTO);
+    Optional<AuthSessionDTO> sessionOptional = authService.authenticate(loginRequestDTO);
 
-    if (tokenOptional.isEmpty()) {
+    if (sessionOptional.isEmpty()) {
       auditLog.warn("event=LOGIN_FAILURE email={}", loginRequestDTO.getEmail());
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
-    String token = tokenOptional.get();
+    AuthSessionDTO session = sessionOptional.get();
     auditLog.info("event=LOGIN_SUCCESS email={}", loginRequestDTO.getEmail());
-    return ResponseEntity.ok(new LoginResponseDTO(token));
+    return ResponseEntity.ok(new LoginResponseDTO(session.accessToken(), session.refreshToken(), session.tenantId()));
   }
 
   @Operation(summary = "Create a workspace and owner account")
@@ -162,7 +207,8 @@ public class AuthController {
   public ResponseEntity<?> register(
       @jakarta.validation.Valid @RequestBody RegisterRequestDTO request) {
     try {
-      return ResponseEntity.ok(new LoginResponseDTO(authService.register(request)));
+        AuthSessionDTO session = authService.register(request);
+        return ResponseEntity.ok(new LoginResponseDTO(session.accessToken(), session.refreshToken(), session.tenantId()));
     } catch (IllegalArgumentException error) {
       return ResponseEntity.status(HttpStatus.CONFLICT)
           .body(Map.of("message", error.getMessage()));
@@ -190,29 +236,48 @@ public class AuthController {
 
     // Authorization: Bearer <token>
     if(authHeader == null || !authHeader.startsWith("Bearer ")) {
+      auditLog.warn("event=TOKEN_VALIDATION_FAILURE reason=missing_bearer");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
     if (!authService.validateToken(authHeader.substring(7))) {
+      auditLog.warn("event=TOKEN_VALIDATION_FAILURE reason=invalid_token");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
     var claims = authService.getClaims(authHeader.substring(7));
     Optional<User> user = userService.findByEmail(claims.getSubject());
-    if (user.isEmpty() || !user.get().isActive()) {
+    if (user.isEmpty() || !user.get().isActive()
+        || !"ACTIVE".equalsIgnoreCase(user.get().getAccountStatus())) {
+      auditLog.warn("event=TOKEN_VALIDATION_FAILURE reason=inactive_or_missing_user subject={}",
+          claims.getSubject());
       return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
     HttpHeaders headers = new HttpHeaders();
-    headers.set("X-Tenant-ID", claims.get("tenantId", String.class));
-    headers.set("X-User-Role", claims.get("role", String.class));
-    headers.set("X-User-Email", claims.getSubject());
+    headers.set("X-Tenant-ID", user.get().getTenantId());
+    headers.set("X-User-Role", user.get().getRole());
+    headers.set("X-User-Email", user.get().getEmail());
+    headers.set("X-Timezone", user.get().getTimezone() == null ? "UTC" : user.get().getTimezone());
+    auditLog.info("event=TOKEN_VALIDATION_SUCCESS subject={}", claims.getSubject());
     return ResponseEntity.ok().headers(headers).build();
   }
 
   @GetMapping("/platform/tenants")
-  public ResponseEntity<List<PlatformTenantDTO>> platformTenants(
-      @RequestHeader("X-User-Role") String role) {
+  public ResponseEntity<?> platformTenants(
+      @RequestHeader("X-User-Role") String role,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size,
+      @RequestParam(defaultValue = "") String search,
+      @RequestParam(defaultValue = "ALL") String status,
+      @RequestParam(defaultValue = "ALL") String plan) {
     requirePlatformAdmin(role);
+    if (page != null || size != null || !search.isBlank() || !"ALL".equals(status) || !"ALL".equals(plan)) {
+      int safePage = Math.max(page == null ? 0 : page, 0);
+      int safeSize = Math.min(Math.max(size == null ? 25 : size, 1), 100);
+      return ResponseEntity.ok(platformAdminService.tenants(
+          PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.ASC, "tenantName")),
+          search, status, plan));
+    }
     return ResponseEntity.ok(platformAdminService.tenants());
   }
 
@@ -327,13 +392,28 @@ public class AuthController {
     return ResponseEntity.ok(supportAccessService.all());
   }
 
+  @GetMapping("/support-access")
+  public ResponseEntity<List<SupportAccessDTO>> tenantSupportAccess(
+      @RequestHeader("X-Tenant-ID") String tenantId,
+      @RequestHeader("X-User-Role") String role) {
+    requireTenantAdmin(role);
+    return ResponseEntity.ok(supportAccessService.forTenant(tenantId));
+  }
+
   @GetMapping("/platform/audit-events")
-  public ResponseEntity<List<PlatformAuditEventDTO>> platformAuditEvents(
+  public ResponseEntity<?> platformAuditEvents(
       @RequestParam(required = false) String tenantId,
       @RequestParam(required = false) String actor,
       @RequestParam(required = false) String action,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size,
       @RequestHeader("X-User-Role") String role) {
     requirePlatformAdmin(role);
+    if (page != null || size != null) {
+      return ResponseEntity.ok(supportAccessService.auditEvents(
+          PageRequest.of(Math.max(page == null ? 0 : page, 0), Math.min(Math.max(size == null ? 25 : size, 1), 100)),
+          tenantId, actor, action));
+    }
     return ResponseEntity.ok(supportAccessService.auditEvents(tenantId, actor, action));
   }
 
@@ -415,7 +495,13 @@ public class AuthController {
     if (!authService.validateToken(token)) {
       throw new org.springframework.security.access.AccessDeniedException("Invalid token");
     }
-    return authService.getClaims(token).getSubject();
+    String email = authService.getClaims(token).getSubject();
+    User user = userService.findByEmail(email)
+        .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Account not found"));
+    if (!user.isActive() || !"ACTIVE".equalsIgnoreCase(user.getAccountStatus())) {
+      throw new org.springframework.security.access.AccessDeniedException("Account is inactive");
+    }
+    return user.getEmail();
   }
 
   private void requirePlatformAdmin(String role) {
@@ -428,6 +514,13 @@ public class AuthController {
   private void requireTenantBillingAdmin(User user) {
     if (!"TENANT_ADMIN".equalsIgnoreCase(user.getRole())
         && !"ADMIN".equalsIgnoreCase(user.getRole())) {
+      throw new org.springframework.web.server.ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Tenant administrator role required");
+    }
+  }
+
+  private void requireTenantAdmin(String role) {
+    if (!"TENANT_ADMIN".equalsIgnoreCase(role) && !"ADMIN".equalsIgnoreCase(role)) {
       throw new org.springframework.web.server.ResponseStatusException(
           HttpStatus.FORBIDDEN, "Tenant administrator role required");
     }

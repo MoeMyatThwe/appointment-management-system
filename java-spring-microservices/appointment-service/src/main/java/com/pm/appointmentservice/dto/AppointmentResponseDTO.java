@@ -14,6 +14,7 @@ public class AppointmentResponseDTO {
   private String notes;
   private String createdAt;
   private String updatedAt;
+  private String publicManageToken;
 
   public String getId() {
     return id;
@@ -117,6 +118,14 @@ public class AppointmentResponseDTO {
 
   public void setUpdatedAt(String updatedAt) {
     this.updatedAt = updatedAt;
+  }
+
+  public String getPublicManageToken() {
+    return publicManageToken;
+  }
+
+  public void setPublicManageToken(String publicManageToken) {
+    this.publicManageToken = publicManageToken;
   }
 
 

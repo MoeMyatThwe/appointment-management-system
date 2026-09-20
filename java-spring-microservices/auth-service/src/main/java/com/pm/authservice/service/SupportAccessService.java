@@ -10,6 +10,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class SupportAccessService {
@@ -68,6 +70,10 @@ public class SupportAccessService {
     return grants.findAllByOrderByCreatedAtDesc().stream().map(this::toDto).toList();
   }
 
+  public List<SupportAccessDTO> forTenant(String tenantId) {
+    return grants.findAllByTenantIdOrderByCreatedAtDesc(tenantId).stream().map(this::toDto).toList();
+  }
+
   public List<PlatformAuditEventDTO> auditEvents(String tenantId, String actor, String action) {
     return audit.findTop100ByOrderByCreatedAtDesc().stream()
         .filter(event -> tenantId == null || tenantId.isBlank() || tenantId.equals(event.getTenantId()))
@@ -77,6 +83,14 @@ public class SupportAccessService {
             event.getActorRole(), event.getTenantId(), event.getAction(),
             event.getDetails(), event.getCreatedAt()))
         .toList();
+  }
+
+  public Page<PlatformAuditEventDTO> auditEvents(Pageable pageable, String tenantId, String actor, String action) {
+    return audit.search(tenantId == null ? "" : tenantId.trim(), actor == null ? "" : actor.trim(),
+        action == null ? "" : action.trim(), pageable)
+        .map(event -> new PlatformAuditEventDTO(event.getId(), event.getActorEmail(),
+            event.getActorRole(), event.getTenantId(), event.getAction(),
+            event.getDetails(), event.getCreatedAt()));
   }
 
   private void record(String actor, String role, String tenantId, String action, String details) {

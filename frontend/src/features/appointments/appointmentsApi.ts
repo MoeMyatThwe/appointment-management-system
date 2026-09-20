@@ -17,6 +17,7 @@ interface AppointmentQuery {
 
 export interface AppointmentSearchQuery extends AppointmentQuery {
   search?: string
+  paymentStatus?: string
   serviceId?: string
   resourceId?: string
   page?: number

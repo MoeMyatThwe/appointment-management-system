@@ -2,10 +2,13 @@ package com.pm.appointmentservice.service;
 
 import com.pm.appointmentservice.dto.AppointmentPaymentDTO;
 import com.pm.appointmentservice.dto.PaymentRequestDTO;
+import com.pm.appointmentservice.dto.PaymentHistoryDTO;
 import com.pm.appointmentservice.model.AppointmentPayment;
 import com.pm.appointmentservice.model.Appointment;
+import com.pm.appointmentservice.model.PaymentHistory;
 import com.pm.appointmentservice.repository.AppointmentPaymentRepository;
 import com.pm.appointmentservice.repository.AppointmentRepository;
+import com.pm.appointmentservice.repository.PaymentHistoryRepository;
 import com.pm.appointmentservice.repository.ServiceOfferingRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -18,10 +21,12 @@ public class PaymentService {
   private final AppointmentPaymentRepository payments;
   private final AppointmentRepository appointments;
   private final ServiceOfferingRepository services;
+  private final PaymentHistoryRepository history;
 
   public PaymentService(AppointmentPaymentRepository payments, AppointmentRepository appointments,
-      ServiceOfferingRepository services) {
+  ServiceOfferingRepository services, PaymentHistoryRepository history) {
     this.payments = payments; this.appointments = appointments; this.services = services;
+    this.history = history;
   }
 
   public AppointmentPaymentDTO get(UUID appointmentId, String tenant) {
@@ -34,30 +39,66 @@ public class PaymentService {
 
   @Transactional
   public AppointmentPaymentDTO record(UUID appointmentId, PaymentRequestDTO input, String tenant) {
-    Appointment appointment = appointments.findByIdAndTenantId(appointmentId, tenant)
+    Appointment appointment = appointments.findByIdAndTenantIdForUpdate(appointmentId, tenant)
         .orElseThrow(() -> new IllegalArgumentException("Appointment not found"));
-    AppointmentPayment payment = payments.findByAppointmentIdAndTenantId(appointmentId, tenant)
+    AppointmentPayment payment = payments.findByAppointmentIdAndTenantIdForUpdate(appointmentId, tenant)
         .orElseGet(() -> newPayment(appointmentId, tenant, appointment));
     BigDecimal amount = input.amountPaid() == null ? BigDecimal.ZERO : input.amountPaid();
-    if (amount.compareTo(payment.getAmountDue()) > 0) {
-      throw new IllegalArgumentException("Payment cannot exceed the appointment total");
+    if (amount.signum() <= 0) {
+      throw new IllegalArgumentException("Payment amount must be greater than zero");
     }
-    payment.setAmountPaid(amount);
-    payment.setPaymentMethod(input.paymentMethod());
-    if (input.currency() != null && !input.currency().isBlank()) payment.setCurrency(input.currency().toUpperCase());
-    payment.setStatus(amount.signum() == 0 ? "UNPAID"
-        : amount.compareTo(payment.getAmountDue()) >= 0 ? "PAID" : "PARTIALLY_PAID");
+    if (input.currency() != null && !input.currency().isBlank()
+        && !payment.getCurrency().equalsIgnoreCase(input.currency())) {
+      throw new IllegalArgumentException("Payment currency cannot be changed");
+    }
+    BigDecimal newAmountPaid = payment.getAmountPaid().add(amount);
+    if (newAmountPaid.compareTo(payment.getAmountDue()) > 0) {
+      throw new IllegalArgumentException("Payment cannot exceed the remaining appointment balance");
+    }
+    payment.setAmountPaid(newAmountPaid);
+    payment.setPaymentMethod(input.paymentMethod().trim().toUpperCase());
+    payment.setStatus(newAmountPaid.compareTo(payment.getAmountDue()) >= 0 ? "PAID" : "PARTIALLY_PAID");
     payment.setUpdatedAt(OffsetDateTime.now().toString());
-    return toDTO(payments.save(payment));
+    AppointmentPayment saved = payments.save(payment);
+    if (amount.signum() > 0) saveHistory(appointmentId, tenant, amount, "PAYMENT",
+        payment.getPaymentMethod(), payment.getStatus());
+    return toDTO(saved);
   }
 
   @Transactional
   public AppointmentPaymentDTO refund(UUID appointmentId, String tenant) {
-    AppointmentPayment payment = payments.findByAppointmentIdAndTenantId(appointmentId, tenant)
+    AppointmentPayment payment = payments.findByAppointmentIdAndTenantIdForUpdate(appointmentId, tenant)
         .orElseThrow(() -> new IllegalArgumentException("Payment not found"));
+    if (payment.getAmountPaid().signum() <= 0 || "REFUNDED".equals(payment.getStatus())) {
+      throw new IllegalArgumentException("This appointment has no refundable payment");
+    }
+    BigDecimal refundedAmount = payment.getAmountPaid();
     payment.setAmountPaid(BigDecimal.ZERO); payment.setStatus("REFUNDED");
     payment.setUpdatedAt(OffsetDateTime.now().toString());
-    return toDTO(payments.save(payment));
+    AppointmentPayment saved = payments.save(payment);
+    saveHistory(appointmentId, tenant, refundedAmount, "REFUND",
+        payment.getPaymentMethod(), payment.getStatus());
+    return toDTO(saved);
+  }
+
+  public java.util.List<PaymentHistoryDTO> history(UUID appointmentId, String tenant) {
+    return history.findAllByAppointmentIdAndTenantIdOrderByCreatedAtDesc(appointmentId, tenant)
+        .stream().map(item -> new PaymentHistoryDTO(item.getId().toString(),
+            item.getAppointmentId().toString(), item.getAmount(), item.getType(),
+            item.getPaymentMethod(), item.getStatus(), item.getCreatedAt())).toList();
+  }
+
+  private void saveHistory(UUID appointmentId, String tenant, BigDecimal amount, String type,
+      String method, String status) {
+    PaymentHistory item = new PaymentHistory();
+    item.setTenantId(tenant);
+    item.setAppointmentId(appointmentId);
+    item.setAmount(amount);
+    item.setType(type);
+    item.setPaymentMethod(method);
+    item.setStatus(status);
+    item.setCreatedAt(OffsetDateTime.now().toString());
+    history.save(item);
   }
 
   private AppointmentPayment newPayment(UUID appointmentId, String tenant, Appointment appointment) {

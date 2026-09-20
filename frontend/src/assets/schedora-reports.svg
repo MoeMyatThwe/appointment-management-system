@@ -1,0 +1,15 @@
+<svg width="720" height="520" viewBox="0 0 720 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="520" rx="24" fill="#15213A"/>
+  <text x="40" y="58" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="23" font-weight="700">Reports &amp; exports</text>
+  <text x="40" y="84" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="12">Understand workload and take your data with you.</text>
+  <rect x="40" y="116" width="148" height="92" rx="12" fill="#1B2946"/><text x="58" y="144" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">All appointments</text><text x="58" y="184" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="28" font-weight="700">248</text>
+  <rect x="204" y="116" width="148" height="92" rx="12" fill="#1B2946"/><text x="222" y="144" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">Upcoming</text><text x="222" y="184" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="28" font-weight="700">86</text>
+  <rect x="368" y="116" width="148" height="92" rx="12" fill="#1B2946"/><text x="386" y="144" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">Completed</text><text x="386" y="184" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="28" font-weight="700">142</text>
+  <rect x="532" y="116" width="148" height="92" rx="12" fill="#1B2946"/><text x="550" y="144" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">Cancelled</text><text x="550" y="184" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="28" font-weight="700">12</text>
+  <rect x="40" y="236" width="640" height="230" rx="14" fill="#1B2946"/>
+  <text x="64" y="270" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="15" font-weight="700">Service demand</text>
+  <text x="64" y="292" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">Appointments grouped by configured service.</text>
+  <text x="64" y="340" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="12">Signature facial</text><rect x="208" y="326" width="330" height="18" rx="9" fill="#24345F"/><rect x="208" y="326" width="252" height="18" rx="9" fill="#71809F"/><text x="560" y="340" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="11" font-weight="700">76</text>
+  <text x="64" y="388" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="12">Classic haircut</text><rect x="208" y="374" width="330" height="18" rx="9" fill="#24345F"/><rect x="208" y="374" width="194" height="18" rx="9" fill="#71809F"/><text x="560" y="388" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="11" font-weight="700">54</text>
+  <text x="64" y="436" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="12">Consultation</text><rect x="208" y="422" width="330" height="18" rx="9" fill="#24345F"/><rect x="208" y="422" width="126" height="18" rx="9" fill="#71809F"/><text x="560" y="436" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="11" font-weight="700">28</text>
+</svg>

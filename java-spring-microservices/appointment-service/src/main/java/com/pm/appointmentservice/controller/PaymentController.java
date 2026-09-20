@@ -24,9 +24,20 @@ public class PaymentController {
 
   @GetMapping
   public ResponseEntity<AppointmentPaymentDTO> get(@PathVariable UUID appointmentId,
-      @RequestHeader("X-Tenant-ID") String tenant) {
+      @RequestHeader("X-Tenant-ID") String tenant,
+      @RequestHeader("X-User-Role") String role) {
     requirePayments(tenant);
+    AccessPolicy.requireBusinessUser(role);
     return ResponseEntity.ok(payments.get(appointmentId, tenant));
+  }
+
+  @GetMapping("/history")
+  public ResponseEntity<java.util.List<com.pm.appointmentservice.dto.PaymentHistoryDTO>> history(
+      @PathVariable UUID appointmentId, @RequestHeader("X-Tenant-ID") String tenant,
+      @RequestHeader("X-User-Role") String role) {
+    requirePayments(tenant);
+    AccessPolicy.requireBusinessUser(role);
+    return ResponseEntity.ok(payments.history(appointmentId, tenant));
   }
 
   @PutMapping
@@ -48,8 +59,10 @@ public class PaymentController {
 
   @PostMapping("/checkout")
   public ResponseEntity<CheckoutSessionDTO> checkout(@PathVariable UUID appointmentId,
-      @RequestHeader("X-Tenant-ID") String tenant) {
+      @RequestHeader("X-Tenant-ID") String tenant,
+      @RequestHeader("X-User-Role") String role) {
     requirePayments(tenant);
+    AccessPolicy.requireManager(role);
     return ResponseEntity.ok(stripe.create(appointmentId, tenant));
   }
 

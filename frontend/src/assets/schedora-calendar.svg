@@ -1,0 +1,25 @@
+<svg width="720" height="520" viewBox="0 0 720 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="520" rx="24" fill="#15213A"/>
+  <text x="36" y="54" fill="#F5F7FB" font-family="Arial, sans-serif" font-size="22" font-weight="700">September 2026</text>
+  <rect x="548" y="28" width="132" height="38" rx="9" fill="#71809F" fill-opacity=".25"/>
+  <text x="579" y="52" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="12">Today</text>
+  <path d="M36 92H684M36 154H684M36 216H684M36 278H684M36 340H684M36 402H684M36 464H684" stroke="#91A1C2" stroke-opacity=".16"/>
+  <path d="M128 92V464M220 92V464M312 92V464M404 92V464M496 92V464M588 92V464" stroke="#91A1C2" stroke-opacity=".16"/>
+  <text x="54" y="117" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">MON</text>
+  <text x="146" y="117" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">TUE</text>
+  <text x="238" y="117" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">WED</text>
+  <text x="330" y="117" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">THU</text>
+  <text x="422" y="117" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">FRI</text>
+  <text x="514" y="117" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">SAT</text>
+  <text x="606" y="117" fill="#9AA7BD" font-family="Arial, sans-serif" font-size="11">SUN</text>
+  <circle cx="266" cy="179" r="16" fill="#71809F"/>
+  <text x="262" y="183" fill="#0B1020" font-family="Arial, sans-serif" font-size="11" font-weight="700">16</text>
+  <text x="54" y="179" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="13">14</text>
+  <text x="146" y="179" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="13">15</text>
+  <text x="330" y="179" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="13">17</text>
+  <text x="422" y="179" fill="#D8DEEA" font-family="Arial, sans-serif" font-size="13">18</text>
+  <rect x="50" y="235" width="70" height="24" rx="6" fill="#71809F" fill-opacity=".3"/>
+  <rect x="238" y="297" width="70" height="24" rx="6" fill="#71809F" fill-opacity=".3"/>
+  <rect x="418" y="235" width="70" height="24" rx="6" fill="#71809F" fill-opacity=".3"/>
+  <rect x="510" y="359" width="70" height="24" rx="6" fill="#71809F" fill-opacity=".3"/>
+</svg>

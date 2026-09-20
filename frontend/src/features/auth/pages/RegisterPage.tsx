@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { isAxiosError } from 'axios'
 import { register } from '../authApi'
 import { useAuthStore } from '../authStore'
 import { validateAccountEmail } from '../emailValidation'
 import { FiAlertCircle, FiEye, FiEyeOff } from 'react-icons/fi'
+import { getApiErrorMessage } from '../../../shared/api/apiError'
 
 export function RegisterPage() {
   const navigate = useNavigate()
@@ -40,28 +40,7 @@ export function RegisterPage() {
       }
       navigate('/dashboard')
     } catch (requestError) {
-      const responseData = isAxiosError(requestError) ? requestError.response?.data : undefined
-      const responseMessage = typeof responseData === 'string'
-        ? responseData
-        : responseData && typeof responseData.message === 'string'
-          ? responseData.message
-          : undefined
-      const status = isAxiosError(requestError) ? requestError.response?.status : undefined
-      setError(
-        responseMessage ||
-        (status === 400
-          ? 'Some registration details are invalid. Check your business name, email, and password.'
-          : status === 403
-            ? 'Registration is currently unavailable. Please contact the platform administrator.'
-            : status === 429
-              ? 'Too many registration attempts. Please wait a few minutes and try again.'
-              : !isAxiosError(requestError) || requestError.response
-                ? undefined
-                : 'The registration service could not be reached. Check that the services are running and try again.') ||
-        (requestError instanceof Error
-          ? requestError.message
-          : 'Registration failed unexpectedly. Please try again, and contact support if the problem continues.'),
-      )
+      setError(getApiErrorMessage(requestError, 'register'))
     } finally {
       setIsSaving(false)
     }
@@ -90,7 +69,7 @@ export function RegisterPage() {
             </label>
             <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
               Password
-              <span className="relative"><input className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-10 py-3 text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" required /><button className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent p-1 text-slate-500 shadow-none hover:text-slate-700" type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}</button></span>
+              <span className="relative"><input className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 pl-3 pr-10 py-3 text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" required /><button className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent p-1 text-slate-500 shadow-none hover:text-slate-700" type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}</button></span>
             </label>
             {error ? <p className="flex items-start gap-2 rounded-xl border border-rose-300/30 bg-rose-950/30 px-3 py-3 text-sm leading-5 text-rose-200"><FiAlertCircle className="mt-0.5 shrink-0 text-rose-300" size={18} aria-hidden="true" />{error}</p> : null}
             <button className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-700" type="submit" disabled={isSaving}>

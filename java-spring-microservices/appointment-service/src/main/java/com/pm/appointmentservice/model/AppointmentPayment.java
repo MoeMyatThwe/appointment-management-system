@@ -14,6 +14,8 @@ public class AppointmentPayment {
   @Column(nullable = false, precision = 12, scale = 2) private BigDecimal amountPaid = BigDecimal.ZERO;
   @Column(nullable = false, length = 3) private String currency = "USD";
   private String paymentMethod;
+  private String stripeCheckoutSessionId;
+  private String stripePaymentIntentId;
   @Column(nullable = false) private String status = "UNPAID";
   @Column(nullable = false, unique = true) private String receiptNumber;
   @Column(nullable = false) private String createdAt;
@@ -32,6 +34,10 @@ public class AppointmentPayment {
   public void setCurrency(String value) { currency = value; }
   public String getPaymentMethod() { return paymentMethod; }
   public void setPaymentMethod(String value) { paymentMethod = value; }
+  public String getStripeCheckoutSessionId() { return stripeCheckoutSessionId; }
+  public void setStripeCheckoutSessionId(String value) { stripeCheckoutSessionId = value; }
+  public String getStripePaymentIntentId() { return stripePaymentIntentId; }
+  public void setStripePaymentIntentId(String value) { stripePaymentIntentId = value; }
   public String getStatus() { return status; }
   public void setStatus(String value) { status = value; }
   public String getReceiptNumber() { return receiptNumber; }

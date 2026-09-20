@@ -7,5 +7,6 @@ public record CurrentUserResponseDTO(
     String email,
     String role,
     String tenantName,
+    String timezone,
     boolean onboardingCompleted) {
 }

@@ -28,7 +28,7 @@ spring:
       globalcors:
         cors-configurations:
           "[/**]":
-            allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+            allowedOriginPatterns: ${CORS_ALLOWED_ORIGINS:http://localhost:[*],http://127.0.0.1:[*]}
             allowedMethods:
               - GET
               - POST
@@ -88,6 +88,13 @@ spring:
                 key-resolver: "#{@ipKeyResolver}"
                 redis-rate-limiter.replenishRate: 20
                 redis-rate-limiter.burstCapacity: 40
+
+        - id: appointment-payment-webhook-route
+          uri: ${APPOINTMENT_SERVICE_URL:http://localhost:4000}
+          predicates:
+            - Path=/api/stripe/appointment-payments/webhook
+          filters:
+            - StripPrefix=1
 
         - id: catalog-service-route
           uri: ${APPOINTMENT_SERVICE_URL:http://localhost:4000}

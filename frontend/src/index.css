@@ -3,9 +3,18 @@
 :root {
   --action-color: #71809f;
   --action-hover-color: #8492ad;
+  --app-bg: #0b1020;
+  --app-surface: rgb(16 25 46 / 88%);
+  --app-surface-raised: rgb(24 33 55 / 78%);
+  --app-surface-muted: rgb(24 33 55 / 52%);
+  --app-border: rgb(125 145 184 / 18%);
+  --app-border-strong: rgb(148 163 184 / 38%);
+  --app-text: #f3f6fb;
+  --app-text-muted: #aebbd2;
+  --app-text-subtle: #8491a8;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #e7ebf3;
-  background: #0b1020;
+  background: var(--app-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -17,6 +26,8 @@
 html,
 body {
   scrollbar-width: none;
+  scroll-behavior: smooth;
+  scroll-padding-top: 92px;
 }
 
 html::-webkit-scrollbar,
@@ -36,6 +47,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  color: var(--app-text);
   background:
     radial-gradient(circle at 8% 0%, rgb(76 96 139 / 18%), transparent 32rem),
     linear-gradient(135deg, #0b1020 0%, #10182b 52%, #0c1222 100%);
@@ -55,6 +67,58 @@ button {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--action-hover-color);
+  outline-offset: 2px;
+}
+
+.workspace-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.workspace-tour-spotlight {
+  position: fixed;
+  border: 2px solid rgb(165 180 252 / 92%);
+  border-radius: 14px;
+  box-shadow: 0 0 0 9999px rgb(2 6 23 / 72%), 0 0 0 6px rgb(129 140 248 / 18%), 0 0 28px rgb(129 140 248 / 60%);
+  pointer-events: none;
+  animation: workspace-tour-pulse 1.8s ease-in-out infinite;
+}
+
+.workspace-tour-card {
+  position: fixed;
+  width: min(360px, calc(100vw - 40px));
+  border: 1px solid rgb(165 180 252 / 35%);
+  border-radius: 18px;
+  padding: 20px;
+  background: #121b35;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 40%);
+  pointer-events: auto;
+  animation: workspace-tour-enter 180ms ease-out;
+}
+
+@keyframes workspace-tour-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}
+
+@keyframes workspace-tour-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+::selection {
+  background: rgb(132 146 173 / 42%);
+  color: #ffffff;
 }
 
 /* Keep the workspace calm and consistent while allowing the page content to breathe. */
@@ -93,13 +157,14 @@ input:-webkit-autofill:active {
 }
 
 [class*="bg-white"] {
-  background-color: rgb(13 19 34 / 62%) !important;
+  background-color: var(--app-surface) !important;
   backdrop-filter: blur(24px) saturate(120%);
-  box-shadow: 0 24px 70px rgb(0 0 0 / 24%);
+  border-color: var(--app-border) !important;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 22%);
 }
 
 [class*="bg-slate-50"] {
-  background-color: rgb(24 33 55 / 46%) !important;
+  background-color: var(--app-surface-muted) !important;
 }
 
 [class*="bg-slate-900"],
@@ -110,7 +175,7 @@ input:-webkit-autofill:active {
 
 [class*="rounded-2xl"],
 [class*="rounded-3xl"] {
-  border-color: rgb(125 145 184 / 8%);
+  border-color: var(--app-border);
   backdrop-filter: blur(24px) saturate(120%);
   background-image: linear-gradient(135deg, rgb(255 255 255 / 6%), transparent 60%);
   box-shadow: 0 24px 70px rgb(0 0 0 / 22%);
@@ -148,16 +213,46 @@ button[class*="bg-indigo-700"]:hover {
   border-color: rgb(137 155 190 / 45%) !important;
 }
 
-[class*="text-slate-900"] { color: #f3f6fb !important; }
+[class*="text-slate-900"] { color: var(--app-text) !important; }
 [class*="text-slate-800"] { color: #e7ebf3 !important; }
 [class*="text-slate-700"] { color: #d3d9e5 !important; }
 [class*="text-slate-600"] { color: #b8c1d2 !important; }
-[class*="text-slate-500"] { color: #95a1b7 !important; }
-[class*="text-slate-400"] { color: #8491a8 !important; }
-[class*="border-slate-"] { border-color: rgb(125 145 184 / 16%) !important; }
+[class*="text-slate-500"] { color: var(--app-text-muted) !important; }
+[class*="text-slate-400"] { color: var(--app-text-subtle) !important; }
+[class*="border-slate-"] { border-color: var(--app-border-strong) !important; }
 [class*="ring-"] { --tw-ring-color: rgb(125 145 184 / 14%) !important; }
 [class*="bg-indigo-100"] { background-color: rgb(113 128 159 / 24%) !important; }
 [class*="text-indigo-700"] { color: #c4cddd !important; }
+
+[class*="text-rose-"],
+[class*="text-red-"] {
+  color: #fda4af !important;
+}
+
+[class*="bg-rose-50"],
+[class*="bg-red-50"] {
+  background-color: rgb(127 29 45 / 24%) !important;
+}
+
+[class*="text-emerald-"] {
+  color: #86efac !important;
+}
+
+[class*="bg-emerald-100"] {
+  background-color: rgb(22 101 52 / 28%) !important;
+}
+
+[class*="text-amber-"] {
+  color: #fcd34d !important;
+}
+
+[class*="bg-amber-100"] {
+  background-color: rgb(146 94 0 / 25%) !important;
+}
+
+[class*="text-indigo-600"] {
+  color: #c4cddd !important;
+}
 
 .simple-form {
   display: grid;
@@ -226,12 +321,12 @@ select option:checked,
 }
 
 .card {
-  border: 1px solid #e4e8f0;
+  border: 1px solid var(--app-border);
   border-radius: 14px;
   padding: 16px;
-  background: rgb(22 31 53 / 60%);
+  background: var(--app-surface);
   backdrop-filter: blur(16px);
-  box-shadow: 0 4px 16px rgb(23 32 51 / 4%);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 18%);
 }
 
 .row-actions {
@@ -249,13 +344,21 @@ select option:checked,
   --schedora-muted: #9aa7bd;
   --schedora-accent: var(--action-color);
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   background: radial-gradient(circle at 80% -10%, rgb(113 128 159 / 18%), transparent 32rem), var(--schedora-bg);
   color: var(--schedora-text);
 }
 
 .schedora-container { width: min(1160px, calc(100% - 40px)); margin: 0 auto; }
-.schedora-header { position: relative; z-index: 2; border-bottom: 1px solid var(--schedora-border); background: rgb(11 16 32 / 82%); backdrop-filter: blur(18px); }
+.schedora-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--schedora-border);
+  background: rgb(11 16 32 / 82%);
+  backdrop-filter: blur(18px);
+}
 .schedora-header-inner, .schedora-footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 76px; }
 .schedora-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--schedora-text); font-size: 1.1rem; font-weight: 750; letter-spacing: -.02em; text-decoration: none; }
 .schedora-brand-mark { display: grid; height: 34px; width: 34px; place-items: center; border-radius: 11px; background: var(--schedora-accent); color: var(--schedora-bg); font-weight: 850; }
@@ -278,13 +381,18 @@ select option:checked,
 .schedora-eyebrow { margin: 0; color: #c2cada; font-size: .75rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
 .schedora-placeholder-actions { margin-top: 30px; }
 .schedora-hero-note { margin: 18px 0 0; color: #71809f; font-size: .8rem; }
-.schedora-image-placeholder { display: flex; min-height: 280px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed rgb(172 186 215 / 32%); border-radius: 24px; background: linear-gradient(145deg, rgb(21 33 58 / 90%), rgb(15 24 44 / 80%)); color: #c2cada; text-align: center; box-shadow: 0 28px 80px rgb(0 0 0 / 22%); }
-.schedora-image-placeholder small { color: var(--schedora-muted); font-size: .75rem; }
-.schedora-image-placeholder-icon { display: grid; height: 44px; width: 44px; place-items: center; border: 1px solid rgb(172 186 215 / 28%); border-radius: 14px; color: var(--schedora-accent); font-size: 1.6rem; }
+.schedora-product-visual { min-height: 280px; overflow: hidden; border: 1px solid rgb(172 186 215 / 20%); border-radius: 24px; background: linear-gradient(145deg, rgb(21 33 58 / 90%), rgb(15 24 44 / 80%)); box-shadow: 0 28px 80px rgb(0 0 0 / 22%); }
+.schedora-product-visual img { display: block; height: 100%; min-height: inherit; width: 100%; object-fit: contain; }
 .schedora-hero-image { min-height: 470px; }
 .schedora-trust-strip { border-block: 1px solid var(--schedora-border); background: rgb(17 26 48 / 62%); }
 .schedora-trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 23px 0; }
 .schedora-trust-grid span { color: #c2cada; font-size: .85rem; font-weight: 650; text-align: center; }
+.schedora-value-section { padding-top: 84px; }
+.schedora-value-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 48px; }
+.schedora-value-card { border: 1px solid var(--schedora-border); border-radius: 20px; background: rgb(21 33 58 / 62%); padding: 26px; }
+.schedora-value-card > span { color: #aebbd2; font-size: .78rem; font-weight: 800; letter-spacing: .1em; }
+.schedora-value-card h3 { margin: 34px 0 10px; font-size: 1.15rem; }
+.schedora-value-card p { margin: 0; color: var(--schedora-muted); font-size: .92rem; line-height: 1.7; }
 .schedora-muted-section { background: rgb(17 26 48 / 55%); }
 .schedora-section-heading { max-width: 650px; }
 .schedora-section-heading-center { margin-inline: auto; text-align: center; }
@@ -324,6 +432,7 @@ select option:checked,
   .schedora-section { padding: 76px 0; }
   .schedora-trust-grid { grid-template-columns: repeat(2, 1fr); }
   .schedora-feature-grid, .schedora-steps-grid { grid-template-columns: 1fr; }
+  .schedora-value-grid { grid-template-columns: 1fr; }
   .schedora-showcase-grid { grid-template-columns: 1fr; }
   .schedora-showcase-large { grid-row: auto; min-height: 360px; }
   .schedora-showcase-grid > :not(.schedora-showcase-large) { min-height: 230px; }

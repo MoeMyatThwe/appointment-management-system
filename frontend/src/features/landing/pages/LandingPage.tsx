@@ -1,6 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { FiArrowRight, FiBell, FiCalendar, FiCheckCircle, FiGrid, FiLink, FiUsers } from 'react-icons/fi'
+import dashboardImage from '../../../assets/schedora-dashboard.svg'
+import calendarImage from '../../../assets/schedora-calendar.svg'
+import bookingImage from '../../../assets/schedora-booking.svg'
+import customersImage from '../../../assets/schedora-customers.svg'
+import teamImage from '../../../assets/schedora-team.svg'
+import reportsImage from '../../../assets/schedora-reports.svg'
 
 const sectionLinks = [
   ['Features', '#features'],
@@ -35,12 +41,10 @@ function Brand() {
   )
 }
 
-function ImagePlaceholder({ label, className = '' }: { label: string; className?: string }) {
+function ProductVisual({ label, className = '', src }: { label: string; className?: string; src: string }) {
   return (
-    <div className={`schedora-image-placeholder ${className}`} role="img" aria-label={`${label} image placeholder`}>
-      <span className="schedora-image-placeholder-icon">+</span>
-      <span>{label} image placeholder</span>
-      <small>Ready for your product screenshot</small>
+    <div className={`schedora-product-visual ${className}`} role="img" aria-label={label}>
+      <img src={src} alt="" />
     </div>
   )
 }
@@ -105,13 +109,32 @@ export function LandingPage() {
             </div>
             <p className="schedora-hero-note">Set up your business in minutes. Keep your team and customers in sync.</p>
           </div>
-          <ImagePlaceholder label="Hero product screenshot" className="schedora-hero-image" />
+          <ProductVisual label="Schedora dashboard preview" src={dashboardImage} className="schedora-hero-image" />
         </div>
       </section>
 
       <section className="schedora-trust-strip" aria-label="Schedora benefits">
         <div className="schedora-container schedora-trust-grid">
           {['Online booking', 'Centralized calendar', 'Customer management', 'Team coordination'].map((item) => <span key={item}>{item}</span>)}
+        </div>
+      </section>
+
+      <section className="schedora-section schedora-value-section">
+        <div className="schedora-container">
+          <SectionHeading eyebrow="A clearer operating system" title="Everything your business needs to stay in sync." description="Schedora connects the moments that usually get scattered across messages, spreadsheets, and separate calendars." align="center" />
+          <div className="schedora-value-grid">
+            {[
+              ['For your customers', 'A simple booking page makes it easy to choose a service, team member, and available time.'],
+              ['For your team', 'A shared calendar keeps appointments, availability, services, and responsibilities visible.'],
+              ['For your business', 'Customer history, reports, and exports give you useful context for every decision.'],
+            ].map(([title, description], index) => (
+              <article className="schedora-value-card" key={title}>
+                <span>0{index + 1}</span>
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -123,7 +146,7 @@ export function LandingPage() {
               {['Keep every appointment in one clear view', 'Let customers book when it suits them', 'Give your team the context they need'].map((benefit) => <div className="schedora-benefit-item" key={benefit}><FiCheckCircle /><span>{benefit}</span></div>)}
             </div>
           </div>
-          <ImagePlaceholder label="Benefits product screenshot" />
+          <ProductVisual label="Schedora customer directory" src={customersImage} />
         </div>
       </section>
 
@@ -144,29 +167,51 @@ export function LandingPage() {
       </section>
 
       <section className="schedora-section">
+        <div className="schedora-container schedora-two-column">
+          <div>
+            <SectionHeading eyebrow="See the bigger picture" title="Turn daily bookings into better decisions." description="Track appointment volume, service demand, and completed work so you can understand what is happening across your business." />
+            <div className="schedora-benefit-list">
+              {['See demand by service', 'Export tenant-scoped records', 'Keep your team aligned with real workload data'].map((benefit) => <div className="schedora-benefit-item" key={benefit}><FiCheckCircle /><span>{benefit}</span></div>)}
+            </div>
+          </div>
+          <ProductVisual label="Schedora reports and exports" src={reportsImage} />
+        </div>
+      </section>
+
+      <section className="schedora-section">
         <div className="schedora-container">
-          <SectionHeading eyebrow="See it in action" title="Product showcase section" description="Your dashboard, calendar, and booking-page images will be placed in these responsive slots." align="center" />
+          <SectionHeading eyebrow="See it in action" title="One workspace, every booking detail." description="Move from your workspace overview to the calendar and public booking page without losing context." align="center" />
           <div className="schedora-showcase-grid">
-            <ImagePlaceholder label="Dashboard" className="schedora-showcase-large" />
-            <ImagePlaceholder label="Calendar" />
-            <ImagePlaceholder label="Booking page" />
+            <ProductVisual label="Schedora dashboard" src={dashboardImage} className="schedora-showcase-large" />
+            <ProductVisual label="Schedora calendar" src={calendarImage} />
+            <ProductVisual label="Schedora booking page" src={bookingImage} />
           </div>
         </div>
       </section>
 
       <section className="schedora-section schedora-muted-section" id="how-it-works">
         <div className="schedora-container">
-          <SectionHeading eyebrow="A better daily workflow" title="How Schedora works" description="A simple three-to-four step walkthrough will make the product easy to understand before registration." align="center" />
+          <SectionHeading eyebrow="A better daily workflow" title="How Schedora works" description="Set up your workspace once, then let your team and customers use the same clear booking flow." align="center" />
           <div className="schedora-steps-grid">
-            {['Create your workspace', 'Add services and staff', 'Set your availability', 'Share your booking link'].map((step, index) => <div className="schedora-step-card" key={step}><span>0{index + 1}</span><h3>{step}</h3><p>Step description placeholder.</p></div>)}
+            {[
+              ['Create your workspace', 'Start with your business name, timezone, and team access.'],
+              ['Add services and staff', 'Define what you offer and who can deliver each service.'],
+              ['Set your availability', 'Choose business hours and keep bookable time predictable.'],
+              ['Share your booking link', 'Let customers choose a service, team member, and open slot.'],
+            ].map(([step, description], index) => <div className="schedora-step-card" key={step}><span>0{index + 1}</span><h3>{step}</h3><p>{description}</p></div>)}
           </div>
         </div>
       </section>
 
       <section className="schedora-section">
         <div className="schedora-container schedora-two-column">
-          <ImagePlaceholder label="Use case" />
-          <SectionHeading eyebrow="Built for service businesses" title="Who Schedora is for" description="Use-case content will show how salons, clinics, studios, and other appointment-based businesses can benefit." />
+          <ProductVisual label="Schedora team and services management" src={teamImage} />
+          <div>
+            <SectionHeading eyebrow="Built for service businesses" title="Who Schedora is for" description="Give every appointment-based business a clearer way to coordinate customers, staff, services, and availability." />
+            <div className="schedora-benefit-list">
+              {['Salons and barbershops managing rotating staff', 'Clinics and studios coordinating services and rooms', 'Consultants and wellness teams sharing a simple booking link'].map((useCase) => <div className="schedora-benefit-item" key={useCase}><FiCheckCircle /><span>{useCase}</span></div>)}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -179,7 +224,7 @@ export function LandingPage() {
 
       <section className="schedora-cta-section">
         <div className="schedora-container schedora-cta-inner">
-          <div><p className="schedora-eyebrow">Ready when you are</p><h2>Final CTA section ready for your message.</h2></div>
+          <div><p className="schedora-eyebrow">Ready when you are</p><h2>Give your team a calmer way to run the day.</h2></div>
           <Link className="schedora-button" to="/register">Create your workspace <FiArrowRight /></Link>
         </div>
       </section>

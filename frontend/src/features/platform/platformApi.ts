@@ -1,4 +1,5 @@
 import { httpClient } from '../../shared/api/httpClient'
+import type { PageResponse } from '../../shared/types/pagination'
 
 export interface PlatformTenant {
   tenantId: string
@@ -39,6 +40,25 @@ export async function setPlatformTenantPlan(tenantId: string, plan: string) {
 
 export async function fetchPlatformTenants() {
   const { data } = await httpClient.get<PlatformTenant[]>('/auth/platform/tenants')
+  return data
+}
+
+export async function fetchPlatformTenantsPage(query: {
+  page: number
+  size: number
+  search?: string
+  status?: string
+  plan?: string
+}) {
+  const { data } = await httpClient.get<PageResponse<PlatformTenant>>('/auth/platform/tenants', {
+    params: {
+      page: query.page,
+      size: query.size,
+      search: query.search || undefined,
+      status: query.status || 'ALL',
+      plan: query.plan || 'ALL',
+    },
+  })
   return data
 }
 
@@ -87,6 +107,16 @@ export async function revokeSupportAccess(id: string) {
   return data
 }
 
+export async function fetchTenantSupportAccess() {
+  const { data } = await httpClient.get<SupportAccess[]>('/auth/support-access')
+  return data
+}
+
+export async function consentSupportAccess(id: string, approved: boolean) {
+  const { data } = await httpClient.post<SupportAccess>(`/auth/support-access/${id}/consent`, { approved })
+  return data
+}
+
 export interface PlatformSetting { key: string; value: string }
 export interface FeatureFlag { key: string; enabled: boolean }
 
@@ -120,8 +150,8 @@ export interface PlatformAuditEvent {
   createdAt: string
 }
 
-export async function fetchPlatformAuditEvents(filters: { tenantId?: string; actor?: string; action?: string }) {
-  const { data } = await httpClient.get<PlatformAuditEvent[]>('/auth/platform/audit-events', { params: filters })
+export async function fetchPlatformAuditEvents(filters: { tenantId?: string; actor?: string; action?: string; page?: number; size?: number }) {
+  const { data } = await httpClient.get<PageResponse<PlatformAuditEvent> | PlatformAuditEvent[]>('/auth/platform/audit-events', { params: filters })
   return data
 }
 

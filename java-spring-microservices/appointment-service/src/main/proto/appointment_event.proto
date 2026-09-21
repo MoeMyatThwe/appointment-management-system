@@ -22,4 +22,5 @@ message AppointmentEvent {
   string event_timestamp = 16;
   int32 event_version = 17;
   string correlation_id = 18;
+  string phone = 19;
 }

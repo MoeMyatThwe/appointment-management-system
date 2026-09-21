@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --action-color: #71809f;
-  --action-hover-color: #8492ad;
-  --app-bg: #0b1020;
-  --app-surface: rgb(16 25 46 / 88%);
-  --app-surface-raised: rgb(24 33 55 / 78%);
-  --app-surface-muted: rgb(24 33 55 / 52%);
-  --app-border: rgb(125 145 184 / 18%);
-  --app-border-strong: rgb(148 163 184 / 38%);
-  --app-text: #f3f6fb;
-  --app-text-muted: #aebbd2;
-  --app-text-subtle: #8491a8;
+  --action-color: #5b8cff;
+  --action-hover-color: #80a7ff;
+  --app-bg: #0f172a;
+  --app-surface: rgb(27 39 64 / 96%);
+  --app-surface-raised: rgb(36 50 79 / 94%);
+  --app-surface-muted: rgb(37 53 82 / 90%);
+  --app-border: rgb(148 163 184 / 30%);
+  --app-border-strong: rgb(148 163 184 / 55%);
+  --app-text: #f8fafc;
+  --app-text-muted: #c6d1e3;
+  --app-text-subtle: #a6b5ca;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #e7ebf3;
+  color: var(--app-text);
   background: var(--app-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -49,8 +49,8 @@ body {
   min-height: 100vh;
   color: var(--app-text);
   background:
-    radial-gradient(circle at 8% 0%, rgb(76 96 139 / 18%), transparent 32rem),
-    linear-gradient(135deg, #0b1020 0%, #10182b 52%, #0c1222 100%);
+    radial-gradient(circle at 8% 0%, rgb(72 114 202 / 24%), transparent 32rem),
+    linear-gradient(135deg, #0f172a 0%, #16233d 52%, #101a2e 100%);
 }
 
 button,
@@ -76,6 +76,17 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--action-hover-color);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 .workspace-tour {
@@ -125,27 +136,27 @@ textarea:focus-visible {
 input,
 select,
 textarea {
-  border-color: rgb(148 163 184 / 52%);
-  background-color: rgb(20 29 50 / 72%);
-  color: #e7ebf3;
+  border-color: rgb(148 163 184 / 64%);
+  background-color: rgb(22 34 58 / 92%);
+  color: var(--app-text);
   box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: rgb(139 157 232 / 85%);
-  box-shadow: 0 0 0 4px rgb(165 180 252 / 24%);
+  border-color: var(--action-hover-color);
+  box-shadow: 0 0 0 4px rgb(91 140 255 / 28%);
 }
 
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-text-fill-color: #e7ebf3 !important;
-  -webkit-box-shadow: 0 0 0 1000px rgb(20 29 50 / 72%) inset !important;
-  box-shadow: 0 0 0 1000px rgb(20 29 50 / 72%) inset !important;
-  caret-color: #e7ebf3;
+  -webkit-text-fill-color: var(--app-text) !important;
+  -webkit-box-shadow: 0 0 0 1000px rgb(22 34 58 / 92%) inset !important;
+  box-shadow: 0 0 0 1000px rgb(22 34 58 / 92%) inset !important;
+  caret-color: var(--app-text);
 }
 
 [class*="bg-slate-50"]:-webkit-autofill,
@@ -183,8 +194,8 @@ input:-webkit-autofill:active {
 
 [class*="bg-indigo-600"],
 [class*="bg-indigo-700"] {
-  background-color: rgb(52 66 99 / 34%) !important;
-  color: #e7ebf3 !important;
+  background-color: rgb(62 91 151 / 48%) !important;
+  color: var(--app-text) !important;
   box-shadow: 0 14px 36px rgb(0 0 0 / 22%);
 }
 
@@ -206,7 +217,7 @@ button[class*="bg-indigo-700"]:hover {
 }
 
 [class*="text-indigo-600"] {
-  color: #aebbd2 !important;
+  color: #8fb1ff !important;
 }
 
 [class*="border-indigo-"] {
@@ -214,15 +225,17 @@ button[class*="bg-indigo-700"]:hover {
 }
 
 [class*="text-slate-900"] { color: var(--app-text) !important; }
-[class*="text-slate-800"] { color: #e7ebf3 !important; }
-[class*="text-slate-700"] { color: #d3d9e5 !important; }
-[class*="text-slate-600"] { color: #b8c1d2 !important; }
+[class*="text-slate-800"] { color: #f1f5f9 !important; }
+[class*="text-slate-700"] { color: #e2e8f0 !important; }
+[class*="text-slate-600"] { color: #cbd5e1 !important; }
 [class*="text-slate-500"] { color: var(--app-text-muted) !important; }
 [class*="text-slate-400"] { color: var(--app-text-subtle) !important; }
 [class*="border-slate-"] { border-color: var(--app-border-strong) !important; }
 [class*="ring-"] { --tw-ring-color: rgb(125 145 184 / 14%) !important; }
-[class*="bg-indigo-100"] { background-color: rgb(113 128 159 / 24%) !important; }
-[class*="text-indigo-700"] { color: #c4cddd !important; }
+[class*="bg-indigo-100"] { background-color: rgb(91 140 255 / 26%) !important; }
+[class*="bg-indigo-50"] { background-color: var(--app-surface-raised) !important; }
+[class*="text-indigo-700"] { color: #b8ceff !important; }
+[class*="text-indigo-800"] { color: #d7e2ff !important; }
 
 [class*="text-rose-"],
 [class*="text-red-"] {
@@ -251,7 +264,7 @@ button[class*="bg-indigo-700"]:hover {
 }
 
 [class*="text-indigo-600"] {
-  color: #c4cddd !important;
+  color: #b8ceff !important;
 }
 
 .simple-form {
@@ -281,12 +294,12 @@ select,
 .simple-form select {
   appearance: none;
   -webkit-appearance: none;
-  background-color: #141d32 !important;
+  background-color: #16223a !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2371809f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
   background-position: right 0.9rem center !important;
   background-repeat: no-repeat !important;
   background-size: 1.15rem !important;
-  border-color: rgb(113 128 159 / 55%) !important;
+  border-color: rgb(148 163 184 / 64%) !important;
   color: #f8fafc !important;
   padding-right: 2.75rem !important;
 }
@@ -305,7 +318,7 @@ select:focus,
 
 select option,
 .simple-form select option {
-  background: #18234a;
+  background: #1b2b4a;
   color: #f8fafc;
 }
 
@@ -358,7 +371,9 @@ select option:checked,
   border-bottom: 1px solid var(--schedora-border);
   background: rgb(11 16 32 / 82%);
   backdrop-filter: blur(18px);
+  transition: background .35s ease, box-shadow .35s ease, border-color .35s ease;
 }
+.schedora-header-scrolled { border-color: rgb(145 161 194 / 30%); background: rgb(8 13 25 / 92%); box-shadow: 0 12px 35px rgb(0 0 0 / 18%); }
 .schedora-header-inner, .schedora-footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 76px; }
 .schedora-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--schedora-text); font-size: 1.1rem; font-weight: 750; letter-spacing: -.02em; text-decoration: none; }
 .schedora-brand-mark { display: grid; height: 34px; width: 34px; place-items: center; border-radius: 11px; background: var(--schedora-accent); color: var(--schedora-bg); font-weight: 850; }
@@ -382,7 +397,9 @@ select option:checked,
 .schedora-placeholder-actions { margin-top: 30px; }
 .schedora-hero-note { margin: 18px 0 0; color: #71809f; font-size: .8rem; }
 .schedora-product-visual { min-height: 280px; overflow: hidden; border: 1px solid rgb(172 186 215 / 20%); border-radius: 24px; background: linear-gradient(145deg, rgb(21 33 58 / 90%), rgb(15 24 44 / 80%)); box-shadow: 0 28px 80px rgb(0 0 0 / 22%); }
-.schedora-product-visual img { display: block; height: 100%; min-height: inherit; width: 100%; object-fit: contain; }
+.schedora-product-visual img { display: block; height: 100%; min-height: inherit; width: 100%; object-fit: contain; transition: transform .8s cubic-bezier(.2,.8,.2,1), filter .5s ease; }
+.schedora-product-visual:hover { border-color: rgb(128 167 255 / 48%); box-shadow: 0 34px 90px rgb(0 0 0 / 30%), 0 0 0 1px rgb(128 167 255 / 12%); }
+.schedora-product-visual:hover img { transform: scale(1.025) translateY(-4px); filter: saturate(1.08); }
 .schedora-hero-image { min-height: 470px; }
 .schedora-trust-strip { border-block: 1px solid var(--schedora-border); background: rgb(17 26 48 / 62%); }
 .schedora-trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 23px 0; }
@@ -390,6 +407,8 @@ select option:checked,
 .schedora-value-section { padding-top: 84px; }
 .schedora-value-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 48px; }
 .schedora-value-card { border: 1px solid var(--schedora-border); border-radius: 20px; background: rgb(21 33 58 / 62%); padding: 26px; }
+.schedora-value-card, .schedora-feature-card, .schedora-step-card { transition: transform .35s ease, border-color .35s ease, background .35s ease, box-shadow .35s ease; }
+.schedora-value-card:hover, .schedora-feature-card:hover, .schedora-step-card:hover { transform: translateY(-7px); border-color: rgb(128 167 255 / 42%); background: rgb(28 43 73 / 76%); box-shadow: 0 20px 50px rgb(0 0 0 / 22%); }
 .schedora-value-card > span { color: #aebbd2; font-size: .78rem; font-weight: 800; letter-spacing: .1em; }
 .schedora-value-card h3 { margin: 34px 0 10px; font-size: 1.15rem; }
 .schedora-value-card p { margin: 0; color: var(--schedora-muted); font-size: .92rem; line-height: 1.7; }
@@ -425,6 +444,19 @@ select option:checked,
 .schedora-footer-inner { min-height: 92px; }
 .schedora-footer-inner p, .schedora-footer-inner > span { margin: 0; color: var(--schedora-muted); font-size: .8rem; }
 
+.schedora-reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1); }
+.schedora-reveal.is-visible { opacity: 1; transform: translateY(0); }
+.schedora-value-grid .schedora-reveal:nth-child(2),
+.schedora-feature-grid .schedora-reveal:nth-child(2),
+.schedora-steps-grid .schedora-reveal:nth-child(2) { transition-delay: 80ms; }
+.schedora-value-grid .schedora-reveal:nth-child(3),
+.schedora-feature-grid .schedora-reveal:nth-child(3),
+.schedora-steps-grid .schedora-reveal:nth-child(3) { transition-delay: 160ms; }
+.schedora-feature-grid .schedora-reveal:nth-child(4),
+.schedora-steps-grid .schedora-reveal:nth-child(4) { transition-delay: 240ms; }
+.schedora-feature-grid .schedora-reveal:nth-child(5) { transition-delay: 320ms; }
+.schedora-feature-grid .schedora-reveal:nth-child(6) { transition-delay: 400ms; }
+
 @media (max-width: 800px) {
   .schedora-nav { display: none; }
   .schedora-hero-grid, .schedora-two-column { grid-template-columns: 1fr; gap: 42px; }
@@ -445,4 +477,20 @@ select option:checked,
   .schedora-content-placeholder h1 { font-size: 3.25rem; }
   .schedora-placeholder-actions { align-items: stretch; flex-direction: column; }
   .schedora-placeholder-actions > * { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedora-reveal,
+  .schedora-reveal.is-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .schedora-product-visual img,
+  .schedora-value-card,
+  .schedora-feature-card,
+  .schedora-step-card {
+    transition: none;
+  }
 }

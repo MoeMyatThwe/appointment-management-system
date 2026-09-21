@@ -91,6 +91,16 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       @Param("startTime") String startTime, @Param("endTime") String endTime);
 
   @Query("""
+      select a from Appointment a
+      where a.tenantId = :tenantId and a.staffId = :staffId
+        and a.status <> 'CANCELLED'
+        and a.startTime < :endTime and a.endTime > :startTime
+      """)
+  List<Appointment> findStaffOverlaps(@Param("tenantId") String tenantId,
+      @Param("staffId") String staffId, @Param("startTime") String startTime,
+      @Param("endTime") String endTime);
+
+  @Query("""
       select case when count(a) > 0 then true else false end
       from Appointment a
       where a.tenantId = :tenantId and a.customerId = :customerId

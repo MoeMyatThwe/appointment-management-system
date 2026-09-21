@@ -205,18 +205,19 @@ export function AppointmentsPage() {
   })
   const availabilityQuery = useQuery<PublicSlot[]>({
     queryKey: ['appointment-availability', tenantId, availabilityDate, form.serviceId, form.staffId, timezone],
-    queryFn: () => fetchPublicSlots(tenantId, availabilityDate, form.serviceId, form.staffId),
+    queryFn: () => fetchPublicSlots(tenantId, availabilityDate, form.serviceId, form.staffId, timezone),
     enabled: showCreateModal && Boolean(tenantId && availabilityDate && form.serviceId && form.staffId),
   })
   const rescheduleAvailabilityQuery = useQuery<PublicSlot[]>({
-    queryKey: ['reschedule-availability', tenantId, rescheduleDraft?.date, rescheduleDraft?.serviceId, rescheduleDraft?.staffId],
-    queryFn: () => fetchPublicSlots(tenantId, rescheduleDraft!.date, rescheduleDraft!.serviceId, rescheduleDraft!.staffId),
+    queryKey: ['reschedule-availability', tenantId, rescheduleDraft?.date, rescheduleDraft?.serviceId, rescheduleDraft?.staffId, timezone],
+    queryFn: () => fetchPublicSlots(tenantId, rescheduleDraft!.date, rescheduleDraft!.serviceId, rescheduleDraft!.staffId, timezone),
     enabled: Boolean(tenantId && rescheduleDraft?.date && rescheduleDraft.serviceId && rescheduleDraft.staffId),
   })
-  const customersQuery = useQuery({ queryKey: ['customers', 'lookup'], queryFn: () => fetchCustomersPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }) })
-  const staffQuery = useQuery({ queryKey: ['staff', 'lookup'], queryFn: () => fetchStaffPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }) })
-  const servicesQuery = useQuery({ queryKey: ['services', 'lookup'], queryFn: () => fetchServicesPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }) })
-  const resourcesQuery = useQuery({ queryKey: ['resources', 'lookup'], queryFn: () => fetchResourcesPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc', active: 'true' }) })
+  const lookupEnabled = showCreateModal || Boolean(rescheduleDraft)
+  const customersQuery = useQuery({ queryKey: ['customers', 'lookup'], queryFn: () => fetchCustomersPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }), enabled: lookupEnabled })
+  const staffQuery = useQuery({ queryKey: ['staff', 'lookup'], queryFn: () => fetchStaffPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }), enabled: lookupEnabled })
+  const servicesQuery = useQuery({ queryKey: ['services', 'lookup'], queryFn: () => fetchServicesPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }), enabled: lookupEnabled })
+  const resourcesQuery = useQuery({ queryKey: ['resources', 'lookup'], queryFn: () => fetchResourcesPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc', active: 'true' }), enabled: lookupEnabled })
 
   const createMutation = useMutation({
     mutationFn: createAppointment,

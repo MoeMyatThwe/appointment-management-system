@@ -4,25 +4,25 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { FiArrowLeft, FiCheck, FiClock, FiHome, FiMapPin } from 'react-icons/fi'
 import { fetchPublicCatalog, fetchPublicSlots, submitPublicBooking } from '../publicBookingApi'
 
-function localDate(daysFromNow = 1) {
+function localDate(timezone: string, daysFromNow = 1) {
   const date = new Date()
   date.setDate(date.getDate() + daysFromNow)
-  return date.toLocaleDateString('en-CA')
+  return date.toLocaleDateString('en-CA', { timeZone: timezone })
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(`${value}T12:00:00`))
+  return new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T12:00:00Z`))
 }
 
-function formatTime(value: string) {
-  return new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+function formatTime(value: string, timezone: string) {
+  return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone: timezone }).format(new Date(value))
 }
 
 export function PublicBookingPage() {
   const { tenantId = '' } = useParams()
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
-  const [date, setDate] = useState(localDate())
+  const [date, setDate] = useState('')
   const [serviceId, setServiceId] = useState('')
   const [staffId, setStaffId] = useState('')
   const [slot, setSlot] = useState<{ startTime: string; endTime: string } | null>(null)
@@ -34,10 +34,12 @@ export function PublicBookingPage() {
     queryFn: () => fetchPublicCatalog(tenantId),
     enabled: Boolean(tenantId),
   })
+  const businessTimezone = catalogQuery.data?.timezone || 'UTC'
+  const selectedDate = date || localDate(businessTimezone)
   const slotsQuery = useQuery({
-    queryKey: ['public-slots', tenantId, date, serviceId, staffId],
-    queryFn: () => fetchPublicSlots(tenantId, date, serviceId, staffId),
-    enabled: Boolean(tenantId && date && serviceId && staffId && step >= 2),
+    queryKey: ['public-slots', tenantId, selectedDate, serviceId, staffId, businessTimezone],
+    queryFn: () => fetchPublicSlots(tenantId, selectedDate, serviceId, staffId, businessTimezone),
+    enabled: Boolean(tenantId && selectedDate && serviceId && staffId && step >= 2),
   })
   const bookingMutation = useMutation({
     mutationFn: () => submitPublicBooking(tenantId, { serviceId, staffId, ...slot!, ...customer }, idempotencyKey),
@@ -45,18 +47,17 @@ export function PublicBookingPage() {
   })
   const service = catalogQuery.data?.services.find((item) => item.id === serviceId)
   const staffMember = catalogQuery.data?.staff.find((item) => item.id === staffId)
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   const businessName = catalogQuery.data?.businessName && catalogQuery.data.businessName !== tenantId
     ? catalogQuery.data.businessName
     : 'Book an appointment'
-  const canContinueToTimes = Boolean(serviceId && staffId && date)
+  const canContinueToTimes = Boolean(serviceId && staffId && selectedDate)
   const canSubmit = Boolean(slot && consent && customer.customerName.trim() && customer.customerEmail.trim())
   const summary = useMemo(() => service && staffMember && slot ? {
     service: service.name,
     staff: staffMember.name,
-    date: formatDate(date),
-    time: `${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}`,
-  } : null, [date, service, staffMember, slot])
+    date: formatDate(selectedDate),
+    time: `${formatTime(slot.startTime, businessTimezone)} - ${formatTime(slot.endTime, businessTimezone)}`,
+  } : null, [businessTimezone, selectedDate, service, staffMember, slot])
 
   const goBack = () => {
     if (step > 1) {
@@ -64,7 +65,17 @@ export function PublicBookingPage() {
       return
     }
     if (window.history.length > 1) navigate(-1)
-    else navigate('/')
+    else {
+      const referrer = document.referrer
+      if (referrer) {
+        const previousUrl = new URL(referrer)
+        if (previousUrl.origin === window.location.origin && previousUrl.pathname !== window.location.pathname) {
+          navigate(`${previousUrl.pathname}${previousUrl.search}${previousUrl.hash}`)
+          return
+        }
+      }
+      navigate('/')
+    }
   }
 
   const selectService = (value: string) => {
@@ -125,13 +136,13 @@ export function PublicBookingPage() {
                   <div><h2 className="text-xl font-bold text-slate-900">What would you like to book?</h2><p className="mt-1 text-sm text-slate-500">Choose the service and professional that suit you best.</p></div>
                   <label className="grid gap-2 text-sm font-semibold text-slate-700">Service<select className="rounded-xl border border-slate-300 bg-white px-3 py-3 font-normal" value={serviceId} onChange={(event) => selectService(event.target.value)}><option value="">Choose a service</option>{catalogQuery.data.services.map((item) => <option key={item.id} value={item.id}>{item.name}{item.durationMinutes ? ` · ${item.durationMinutes} min` : ''}{item.price ? ` · $${item.price}` : ''}</option>)}</select></label>
                   <label className="grid gap-2 text-sm font-semibold text-slate-700">Preferred team member<select className="rounded-xl border border-slate-300 bg-white px-3 py-3 font-normal" value={staffId} onChange={(event) => selectStaff(event.target.value)}><option value="">Choose a team member</option>{catalogQuery.data.staff.map((item) => <option key={item.id} value={item.id}>{item.name}{item.role ? ` · ${item.role}` : ''}</option>)}</select></label>
-                  <label className="grid gap-2 text-sm font-semibold text-slate-700">Preferred date<input className="rounded-xl border border-slate-300 px-3 py-3 font-normal" type="date" min={localDate(0)} value={date} onChange={(event) => { setDate(event.target.value); setSlot(null) }} /><span className="font-normal text-slate-500">Times are shown in your local timezone: {timezone}</span></label>
+                  <label className="grid gap-2 text-sm font-semibold text-slate-700">Preferred date<input className="rounded-xl border border-slate-300 px-3 py-3 font-normal" type="date" min={localDate(businessTimezone, 0)} value={selectedDate} onChange={(event) => { setDate(event.target.value); setSlot(null) }} /><span className="font-normal text-slate-500">Times are shown in the business timezone: {businessTimezone}</span></label>
                   <button className="rounded-xl bg-[#18234a] px-4 py-3 font-semibold text-white hover:bg-[#24345f] disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled={!canContinueToTimes} onClick={() => setStep(2)}>Find available times</button>
                 </div> : null}
 
                 {step === 2 ? <div className="grid gap-6">
-                  <div><h2 className="text-xl font-bold text-slate-900">Choose a time</h2><p className="mt-1 text-sm text-slate-500">{service?.name} with {staffMember?.name} on {formatDate(date)}.</p></div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="flex items-center gap-2 text-sm font-semibold text-slate-700"><FiClock aria-hidden="true" />Available times · {timezone}</p><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{slotsQuery.isLoading ? <p className="col-span-full py-4 text-sm text-slate-500">Finding available times...</p> : slotsQuery.isError ? <div className="col-span-full py-4 text-sm text-rose-700">Availability could not be loaded. <button className="font-semibold underline" type="button" onClick={() => void slotsQuery.refetch()}>Try again</button></div> : slotsQuery.data?.length ? slotsQuery.data.map((item) => <button className={`rounded-xl border px-3 py-2.5 text-sm font-semibold ${slot?.startTime === item.startTime ? 'border-[#18234a] bg-[#18234a] text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-[#18234a]'}`} type="button" key={item.startTime} onClick={() => setSlot(item)}>{formatTime(item.startTime)}</button>) : <p className="col-span-full rounded-xl bg-white p-4 text-sm text-slate-500">No times are available. Try another date or team member.</p>}</div></div>
+                  <div><h2 className="text-xl font-bold text-slate-900">Choose a time</h2><p className="mt-1 text-sm text-slate-500">{service?.name} with {staffMember?.name} on {formatDate(selectedDate)}.</p></div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="flex items-center gap-2 text-sm font-semibold text-slate-700"><FiClock aria-hidden="true" />Available times · {businessTimezone}</p><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{slotsQuery.isLoading ? <p className="col-span-full py-4 text-sm text-slate-500">Finding available times...</p> : slotsQuery.isError ? <div className="col-span-full py-4 text-sm text-rose-700">Availability could not be loaded. <button className="font-semibold underline" type="button" onClick={() => void slotsQuery.refetch()}>Try again</button></div> : slotsQuery.data?.length ? slotsQuery.data.map((item) => <button className={`rounded-xl border px-3 py-2.5 text-sm font-semibold ${slot?.startTime === item.startTime ? 'border-[#18234a] bg-[#18234a] text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-[#18234a]'}`} type="button" key={item.startTime} onClick={() => setSlot(item)}>{formatTime(item.startTime, businessTimezone)}</button>) : <p className="col-span-full rounded-xl bg-white p-4 text-sm text-slate-500">No times are available. Try another date or team member.</p>}</div></div>
                   <button className="rounded-xl bg-[#18234a] px-4 py-3 font-semibold text-white hover:bg-[#24345f] disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled={!slot} onClick={() => setStep(3)}>Continue with selected time</button>
                 </div> : null}
 
@@ -153,7 +164,7 @@ export function PublicBookingPage() {
               <p className="flex items-start gap-2"><FiMapPin className="mt-0.5 shrink-0" aria-hidden="true" /><span>{businessName}<br /><span className="text-xs text-slate-400">Online appointment request</span></span></p>
               {service ? <p><span className="text-slate-400">Service</span><br /><span className="font-semibold text-white">{service.name}</span></p> : null}
               {staffMember ? <p><span className="text-slate-400">Team member</span><br /><span className="font-semibold text-white">{staffMember.name}</span></p> : null}
-              {slot ? <p><span className="text-slate-400">Date and time</span><br /><span className="font-semibold text-white">{formatDate(date)}<br />{formatTime(slot.startTime)} - {formatTime(slot.endTime)}</span></p> : <p className="text-slate-400">Your selected service, date, and time will appear here.</p>}
+              {slot ? <p><span className="text-slate-400">Date and time</span><br /><span className="font-semibold text-white">{formatDate(selectedDate)}<br />{formatTime(slot.startTime, businessTimezone)} - {formatTime(slot.endTime, businessTimezone)}</span></p> : <p className="text-slate-400">Your selected service, date, and time will appear here.</p>}
             </div>
           </aside>
         </div>

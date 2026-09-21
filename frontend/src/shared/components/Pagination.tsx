@@ -22,7 +22,7 @@ export function Pagination({
   }
 
   return (
-    <div className="mt-5 flex items-center justify-between rounded-xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-slate-200">
+    <div className="mt-5 flex flex-col gap-3 rounded-xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-4 text-slate-500">
         {totalElements !== undefined ? <span>{totalElements} result{totalElements === 1 ? '' : 's'}</span> : null}
         <span>Page {totalPages ? page + 1 : 0} of {totalPages}</span>
@@ -39,9 +39,9 @@ export function Pagination({
           </label>
         ) : null}
       </div>
-      <div className="flex gap-2">
+      <div className="flex w-full gap-2 sm:w-auto">
         <button
-          className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:opacity-40"
+          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:opacity-40 sm:flex-none"
           type="button"
           disabled={page === 0}
           onClick={() => onPageChange(Math.max(0, page - 1))}
@@ -49,7 +49,7 @@ export function Pagination({
           Previous
         </button>
         <button
-          className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:opacity-40"
+          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 disabled:opacity-40 sm:flex-none"
           type="button"
           disabled={totalPages === 0 || page === totalPages - 1}
           onClick={() => onPageChange(page + 1)}

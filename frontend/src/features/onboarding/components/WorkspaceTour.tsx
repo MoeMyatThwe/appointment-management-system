@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { FiArrowRight, FiCheck, FiHelpCircle, FiX } from 'react-icons/fi'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { fetchAppointments } from '../../appointments/appointmentsApi'
-import { fetchCustomers } from '../../customers/customersApi'
-import { fetchServices } from '../../services/servicesApi'
-import { fetchStaff } from '../../staff/staffApi'
-import { fetchResources } from '../../resources/resourcesApi'
 import { useAuthStore } from '../../auth/authStore'
 
 interface WorkspaceTourProps {
@@ -33,30 +27,6 @@ export function WorkspaceTour({ request }: WorkspaceTourProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
-
-  const appointments = useQuery({
-    queryKey: ['appointments'],
-    queryFn: () => fetchAppointments(),
-  })
-  const customers = useQuery({
-    queryKey: ['customers'],
-    queryFn: () => fetchCustomers(),
-  })
-  const staff = useQuery({
-    queryKey: ['staff'],
-    queryFn: fetchStaff,
-    enabled: canManageOperations,
-  })
-  const services = useQuery({
-    queryKey: ['services'],
-    queryFn: fetchServices,
-    enabled: canManageOperations,
-  })
-  const resources = useQuery({
-    queryKey: ['resources'],
-    queryFn: fetchResources,
-    enabled: canManageOperations,
-  })
 
   const steps = useMemo<TourStep[]>(() => {
     const commonSteps: TourStep[] = [
@@ -198,26 +168,11 @@ export function WorkspaceTour({ request }: WorkspaceTourProps) {
     return commonSteps
   }, [canManageOperations, canViewBilling, canViewReports])
 
-  const hasLoadedWorkspace = appointments.isSuccess && customers.isSuccess
-    && (!canManageOperations || (staff.isSuccess && services.isSuccess && resources.isSuccess))
-  const isEmptyWorkspace = hasLoadedWorkspace
-    && appointments.data?.length === 0
-    && customers.data?.length === 0
-    && (!canManageOperations || (staff.data?.length === 0 && services.data?.length === 0 && resources.data?.length === 0))
-
   useEffect(() => {
     if (!request) return
     setStepIndex(0)
     setIsOpen(true)
   }, [request])
-
-  useEffect(() => {
-    if (!user?.tenantId || !isEmptyWorkspace || localStorage.getItem(seenKey(user.tenantId))) {
-      return
-    }
-    setStepIndex(0)
-    setIsOpen(true)
-  }, [isEmptyWorkspace, user?.tenantId])
 
   useEffect(() => {
     if (!isOpen) return

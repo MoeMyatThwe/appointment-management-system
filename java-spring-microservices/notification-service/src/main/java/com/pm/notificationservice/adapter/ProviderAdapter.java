@@ -41,10 +41,12 @@ public class ProviderAdapter implements NotificationAdapter {
 
     String payload = """
         {"channel":"%s","provider":"%s","eventType":"%s","appointmentId":"%s",
-        "tenantId":"%s","customerId":"%s","businessId":"%s","startTime":"%s",
-        "endTime":"%s","status":"%s","notes":"%s"}
+        "tenantId":"%s","customerId":"%s","customerName":"%s","customerEmail":"%s",
+        "customerPhone":"%s","businessId":"%s","startTime":"%s","endTime":"%s",
+        "status":"%s","notes":"%s"}
         """.formatted(escape(channel), escape(provider), escape(event.getEventType()),
         escape(event.getAppointmentId()), escape(event.getTenantId()), escape(event.getCustomerId()),
+        escape(event.getName()), escape(event.getEmail()), escape(event.getPhone()),
         escape(event.getBusinessId()), escape(event.getStartTime()), escape(event.getEndTime()),
         escape(event.getStatus()), escape(event.getNotes())).replaceAll("\\s+", "");
 

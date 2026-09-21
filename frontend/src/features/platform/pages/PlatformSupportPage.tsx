@@ -4,9 +4,12 @@ import { PlatformHeader } from '../components/PlatformHeader'
 import { fetchPlatformTenants, fetchSupportAccess, requestSupportAccess, revokeSupportAccess } from '../platformApi'
 import { useEscapeKey } from '../../../shared/hooks/useEscapeKey'
 import { FiPlus, FiX } from 'react-icons/fi'
+import { useToast } from '../../../shared/components/ToastProvider'
+import { getApiErrorMessage } from '../../../shared/api/apiError'
 
 export function PlatformSupportPage() {
   const client = useQueryClient()
+  const { showToast } = useToast()
   const tenants = useQuery({ queryKey: ['platform-tenants'], queryFn: fetchPlatformTenants })
   const grants = useQuery({ queryKey: ['support-access'], queryFn: fetchSupportAccess })
   const [tenantId, setTenantId] = useState('')
@@ -14,8 +17,8 @@ export function PlatformSupportPage() {
   const [durationMinutes, setDurationMinutes] = useState(30)
   const [showRequestModal, setShowRequestModal] = useState(false)
   useEscapeKey(showRequestModal, () => setShowRequestModal(false))
-  const request = useMutation({ mutationFn: () => requestSupportAccess(tenantId, reason, durationMinutes), onSuccess: () => { setReason(''); setShowRequestModal(false); void client.invalidateQueries({ queryKey: ['support-access'] }) } })
-  const revoke = useMutation({ mutationFn: revokeSupportAccess, onSuccess: () => void client.invalidateQueries({ queryKey: ['support-access'] }) })
+  const request = useMutation({ mutationFn: () => requestSupportAccess(tenantId, reason, durationMinutes), onSuccess: () => { setReason(''); setShowRequestModal(false); void client.invalidateQueries({ queryKey: ['support-access'] }); showToast('Support access request submitted.', 'success') }, onError: (error) => showToast(getApiErrorMessage(error), 'error') })
+  const revoke = useMutation({ mutationFn: revokeSupportAccess, onSuccess: () => { void client.invalidateQueries({ queryKey: ['support-access'] }); showToast('Support access revoked.', 'success') }, onError: (error) => showToast(getApiErrorMessage(error), 'error') })
 
   return (
     <>

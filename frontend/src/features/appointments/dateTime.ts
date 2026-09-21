@@ -51,17 +51,10 @@ export function validateDateTimeRange(start: string, end: string) {
 }
 
 export function formatAppointmentDateTime(value: string, timezone: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: timezone,
-  }).format(new Date(value))
+  return formatDateTimeInTimezone(value, timezone)
 }
 
 export function formatAppointmentTime(value: string, timezone: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: timezone,
-  }).format(new Date(value))
+  return formatTimeInTimezone(value, timezone)
 }
+import { formatDateTimeInTimezone, formatTimeInTimezone } from '../../shared/utils/dateTime'

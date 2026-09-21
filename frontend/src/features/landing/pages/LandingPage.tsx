@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FiArrowRight, FiBell, FiCalendar, FiCheckCircle, FiGrid, FiLink, FiUsers } from 'react-icons/fi'
-import dashboardImage from '../../../assets/schedora-dashboard.svg'
+import dashboardImage from '../../../assets/schedora-dashboard-overview.png'
 import calendarImage from '../../../assets/schedora-calendar.svg'
 import bookingImage from '../../../assets/schedora-booking.svg'
 import customersImage from '../../../assets/schedora-customers.svg'
@@ -43,7 +43,7 @@ function Brand() {
 
 function ProductVisual({ label, className = '', src }: { label: string; className?: string; src: string }) {
   return (
-    <div className={`schedora-product-visual ${className}`} role="img" aria-label={label}>
+    <div className={`schedora-product-visual schedora-reveal ${className}`} role="img" aria-label={label}>
       <img src={src} alt="" />
     </div>
   )
@@ -51,7 +51,7 @@ function ProductVisual({ label, className = '', src }: { label: string; classNam
 
 function SectionHeading({ eyebrow, title, description, align = 'left' }: { eyebrow: string; title: string; description: string; align?: 'left' | 'center' }) {
   return (
-    <div className={`schedora-section-heading ${align === 'center' ? 'schedora-section-heading-center' : ''}`}>
+    <div className={`schedora-section-heading schedora-reveal ${align === 'center' ? 'schedora-section-heading-center' : ''}`}>
       <p className="schedora-eyebrow">{eyebrow}</p>
       <h2>{title}</h2>
       <p>{description}</p>
@@ -81,9 +81,32 @@ function FAQList() {
 }
 
 export function LandingPage() {
+  const [isScrolled, setIsScrolled] = useState(false)
+
+  useEffect(() => {
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible')
+          revealObserver.unobserve(entry.target)
+        }
+      })
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px' })
+
+    document.querySelectorAll('.schedora-reveal').forEach((element) => revealObserver.observe(element))
+    const handleScroll = () => setIsScrolled(window.scrollY > 12)
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      revealObserver.disconnect()
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
+
   return (
     <main className="schedora-landing">
-      <header className="schedora-header">
+      <header className={`schedora-header ${isScrolled ? 'schedora-header-scrolled' : ''}`}>
         <div className="schedora-container schedora-header-inner">
           <Brand />
           <nav className="schedora-nav" aria-label="Main navigation">
@@ -98,7 +121,7 @@ export function LandingPage() {
 
       <section className="schedora-section schedora-hero-section">
         <div className="schedora-container schedora-hero-grid">
-          <div className="schedora-hero-copy">
+          <div className="schedora-hero-copy schedora-reveal">
             <div className="schedora-hero-badge"><span /> Built for calmer business days</div>
             <p className="schedora-eyebrow">Appointment management, simplified</p>
             <h1>Make every booking feel effortless.</h1>
@@ -128,7 +151,7 @@ export function LandingPage() {
               ['For your team', 'A shared calendar keeps appointments, availability, services, and responsibilities visible.'],
               ['For your business', 'Customer history, reports, and exports give you useful context for every decision.'],
             ].map(([title, description], index) => (
-              <article className="schedora-value-card" key={title}>
+              <article className="schedora-value-card schedora-reveal" key={title}>
                 <span>0{index + 1}</span>
                 <h3>{title}</h3>
                 <p>{description}</p>
@@ -155,7 +178,7 @@ export function LandingPage() {
           <SectionHeading eyebrow="Everything in one place" title="The tools to run a smoother business." description="From your first booking of the day to your final appointment, Schedora keeps the details organized and easy to find." />
           <div className="schedora-feature-grid">
             {featurePlaceholders.map(([number, title, description, Icon]) => (
-              <article className="schedora-feature-card" key={title}>
+              <article className="schedora-feature-card schedora-reveal" key={title}>
                 <span className="schedora-card-number">{number}</span>
                 <span className="schedora-feature-icon"><Icon /></span>
                 <h3>{title}</h3>
@@ -198,7 +221,7 @@ export function LandingPage() {
               ['Add services and staff', 'Define what you offer and who can deliver each service.'],
               ['Set your availability', 'Choose business hours and keep bookable time predictable.'],
               ['Share your booking link', 'Let customers choose a service, team member, and open slot.'],
-            ].map(([step, description], index) => <div className="schedora-step-card" key={step}><span>0{index + 1}</span><h3>{step}</h3><p>{description}</p></div>)}
+            ].map(([step, description], index) => <div className="schedora-step-card schedora-reveal" key={step}><span>0{index + 1}</span><h3>{step}</h3><p>{description}</p></div>)}
           </div>
         </div>
       </section>

@@ -1,30 +1,26 @@
-import { Navigate, createBrowserRouter, useLocation } from 'react-router-dom'
+import { lazy } from 'react'
+import { Link, Navigate, createBrowserRouter, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AppLayout } from '../layouts/AppLayout'
-import { LoginPage } from '../features/auth/pages/LoginPage'
-import { RegisterPage } from '../features/auth/pages/RegisterPage'
-import { AppointmentsPage } from '../features/appointments/pages/AppointmentsPage'
-import { CustomersPage } from '../features/customers/pages/CustomersPage'
-import { StaffPage } from '../features/staff/pages/StaffPage'
 import { useAuthStore } from '../features/auth/authStore'
-import { ServicesPage } from '../features/services/pages/ServicesPage'
-import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage'
 import { useQuery } from '@tanstack/react-query'
 import { fetchDashboardSummary } from '../features/reports/reportsApi'
-import { ResourcesPage } from '../features/resources/pages/ResourcesPage'
-import { SchedulePage } from '../features/schedule/pages/SchedulePage'
-import { CalendarPage } from '../features/appointments/pages/CalendarPage'
-import { PublicBookingPage } from '../features/booking/pages/PublicBookingPage'
-import { PublicBookingManagePage } from '../features/booking/pages/PublicBookingManagePage'
-import { ReportsPage } from '../features/reports/pages/ReportsPage'
-import { PlatformAdminPage } from '../features/platform/pages/PlatformAdminPage'
-import { PlatformSupportPage } from '../features/platform/pages/PlatformSupportPage'
-import { PlatformSettingsPage } from '../features/platform/pages/PlatformSettingsPage'
-import { PlatformAuditLogPage } from '../features/platform/pages/PlatformAuditLogPage'
-import { RecoveryPage } from '../features/auth/pages/RecoveryPage'
-import { BillingPage } from '../features/billing/pages/BillingPage'
 import { LandingPage } from '../features/landing/pages/LandingPage'
-import { SupportAccessConsentPage } from '../features/platform/pages/SupportAccessConsentPage'
+import { formatDateTimeInTimezone } from '../shared/utils/dateTime'
+import { StatusBadge } from '../shared/components/StatusBadge'
+
+const LazyBillingPage = lazy(() => import('../features/billing/pages/BillingPage').then((module) => ({ default: module.BillingPage })))
+const LazyOnboardingPage = lazy(() => import('../features/onboarding/pages/OnboardingPage').then((module) => ({ default: module.OnboardingPage })))
+const LazyPlatformAdminPage = lazy(() => import('../features/platform/pages/PlatformAdminPage').then((module) => ({ default: module.PlatformAdminPage })))
+const LazyPlatformAuditLogPage = lazy(() => import('../features/platform/pages/PlatformAuditLogPage').then((module) => ({ default: module.PlatformAuditLogPage })))
+const LazyPlatformSettingsPage = lazy(() => import('../features/platform/pages/PlatformSettingsPage').then((module) => ({ default: module.PlatformSettingsPage })))
+const LazyPlatformSupportPage = lazy(() => import('../features/platform/pages/PlatformSupportPage').then((module) => ({ default: module.PlatformSupportPage })))
+const LazyReportsPage = lazy(() => import('../features/reports/pages/ReportsPage').then((module) => ({ default: module.ReportsPage })))
+const LazyResourcesPage = lazy(() => import('../features/resources/pages/ResourcesPage').then((module) => ({ default: module.ResourcesPage })))
+const LazySchedulePage = lazy(() => import('../features/schedule/pages/SchedulePage').then((module) => ({ default: module.SchedulePage })))
+const LazyServicesPage = lazy(() => import('../features/services/pages/ServicesPage').then((module) => ({ default: module.ServicesPage })))
+const LazyStaffPage = lazy(() => import('../features/staff/pages/StaffPage').then((module) => ({ default: module.StaffPage })))
+const LazySupportAccessPage = lazy(() => import('../features/platform/pages/SupportAccessConsentPage').then((module) => ({ default: module.SupportAccessConsentPage })))
 
 function DashboardPage() {
   const user = useAuthStore((state) => state.user)
@@ -43,19 +39,21 @@ function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ['Today', summary.data?.appointmentsToday ?? 0, 'Appointments scheduled'],
+          ['Upcoming', summary.data?.upcomingAppointments ?? 0, 'Future appointments'],
+          ['Completed', summary.data?.completedAppointments ?? 0, 'Completed appointments'],
+          ['Cancelled', summary.data?.cancelledAppointments ?? 0, 'Cancelled appointments'],
           ['Customers', summary.data?.customerCount ?? 0, 'People in your workspace'],
-          ['Staff', summary.data?.staffCount ?? 0, 'Bookable team members'],
           ['Services', summary.data?.serviceCount ?? 0, 'Services available to book'],
         ].map(([label, value, detail]) => <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200" key={label}><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold text-slate-900">{isLoading ? '—' : value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div>)}
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <div className="flex items-center justify-between"><div><h3 className="text-lg font-semibold text-slate-900">Upcoming appointments</h3><p className="mt-1 text-sm text-slate-500">Your next scheduled customer visits.</p></div><a className="text-sm font-semibold text-indigo-600" href="/appointments">View all</a></div>
-          <div className="mt-5 grid gap-3">{isLoading ? <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">Loading appointments...</p> : summary.data?.nextAppointments.length ? summary.data.nextAppointments.map((appointment) => <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3" key={appointment.id}><div><p className="font-semibold text-slate-800">{new Date(appointment.startTime).toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">{appointment.status.replace('_', ' ')}</p></div><span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">Scheduled</span></div>) : <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No upcoming appointments yet.</p>}</div>
+          <div className="flex items-center justify-between"><div><h3 className="text-lg font-semibold text-slate-900">Upcoming appointments</h3><p className="mt-1 text-sm text-slate-500">Your next scheduled customer visits.</p></div><Link className="text-sm font-semibold text-indigo-600" to="/appointments">View all</Link></div>
+          <div className="mt-5 grid gap-3">{isLoading ? <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">Loading appointments...</p> : summary.data?.nextAppointments.length ? summary.data.nextAppointments.map((appointment) => <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3" key={appointment.id}><div className="min-w-0"><p className="truncate font-semibold text-slate-800">{formatDateTimeInTimezone(appointment.startTime, user?.timezone ?? 'UTC')}</p><p className="mt-1 text-xs text-slate-500">{appointment.status.replace('_', ' ')}</p></div><StatusBadge label="Scheduled" tone="info" /></div>) : <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No upcoming appointments yet.</p>}</div>
         </section>
         <section className="rounded-2xl bg-indigo-600 p-6 text-white shadow-sm">
           <p className="text-sm font-semibold text-indigo-200">Next steps</p><h3 className="mt-2 text-xl font-bold">Make your workspace bookable</h3><p className="mt-2 text-sm leading-6 text-indigo-100">Add your team, services, and business hours so appointments can be managed smoothly.</p>
-          <div className="mt-6 grid gap-2"><a className="rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-indigo-700 hover:bg-indigo-50" href="/staff">Add staff member</a><a className="rounded-xl bg-indigo-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-indigo-400" href="/services">Create a service</a>{user?.tenantId ? <a className="rounded-xl border border-indigo-300 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-indigo-500" href={`/book/${user.tenantId}`} target="_blank" rel="noreferrer">Open public booking page</a> : null}</div>
+          <div className="mt-6 grid gap-2"><a className="rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-indigo-700 hover:bg-indigo-50" href="/staff">Add staff member</a><a className="rounded-xl bg-indigo-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-indigo-400" href="/services">Create a service</a>{user?.tenantId ? <Link className="rounded-xl border border-indigo-300 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-indigo-500" to={`/book/${user.tenantId}`}>Open public booking page</Link> : null}</div>
         </section>
       </div>
     </div>
@@ -67,7 +65,7 @@ function PlatformAuditLogRoute() {
   if (isLoading) return <p>Loading...</p>
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user?.role !== 'PLATFORM_ADMIN') return <Navigate to="/dashboard" replace />
-  return <PlatformAuditLogPage />
+  return <LazyPlatformAuditLogPage />
 }
 
 function PlatformSettingsRoute() {
@@ -75,7 +73,7 @@ function PlatformSettingsRoute() {
   if (isLoading) return <p>Loading...</p>
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user?.role !== 'PLATFORM_ADMIN') return <Navigate to="/dashboard" replace />
-  return <PlatformSettingsPage />
+  return <LazyPlatformSettingsPage />
 }
 
 function PlatformSupportRoute() {
@@ -83,7 +81,7 @@ function PlatformSupportRoute() {
   if (isLoading) return <p>Loading...</p>
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user?.role !== 'PLATFORM_ADMIN') return <Navigate to="/dashboard" replace />
-  return <PlatformSupportPage />
+  return <LazyPlatformSupportPage />
 }
 
 function RouteErrorPage() {
@@ -103,12 +101,15 @@ function ProtectedRoute() {
   const { isAuthenticated, isLoading, user } = useAuthStore()
   const location = useLocation()
 
+  if (location.pathname === '/') {
+    return <LandingPage />
+  }
+
   if (isLoading) {
     return <p>Loading...</p>
   }
 
   if (!isAuthenticated) {
-    if (location.pathname === '/') return <LandingPage />
     return <Navigate to="/login" replace />
   }
   if (user?.role === 'PLATFORM_ADMIN') {
@@ -137,7 +138,7 @@ function PlatformAdminRoute() {
   if (isLoading) return <p>Loading...</p>
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user?.role !== 'PLATFORM_ADMIN') return <Navigate to="/dashboard" replace />
-  return <PlatformAdminPage />
+  return <LazyPlatformAdminPage />
 }
 
 function OnboardingRoute() {
@@ -145,15 +146,15 @@ function OnboardingRoute() {
   if (isLoading) return <p>Loading...</p>
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user?.onboardingCompleted) return <Navigate to="/dashboard" replace />
-  return <OnboardingPage />
+  return <LazyOnboardingPage />
 }
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
-  { path: '/register', element: <RegisterPage /> },
-  { path: '/recovery', element: <RecoveryPage /> },
-  { path: '/book/:tenantId', element: <PublicBookingPage /> },
-  { path: '/book/:tenantId/manage/:token', element: <PublicBookingManagePage /> },
+  { path: '/login', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/auth/pages/LoginPage')).LoginPage }) },
+  { path: '/register', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/auth/pages/RegisterPage')).RegisterPage }) },
+  { path: '/recovery', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/auth/pages/RecoveryPage')).RecoveryPage }) },
+  { path: '/book/:tenantId', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/booking/pages/PublicBookingPage')).PublicBookingPage }) },
+  { path: '/book/:tenantId/manage/:token', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/booking/pages/PublicBookingManagePage')).PublicBookingManagePage }) },
   { path: '/onboarding', element: <OnboardingRoute /> },
   { path: '/platform/support', element: <PlatformSupportRoute /> },
   { path: '/platform/settings', element: <PlatformSettingsRoute /> },
@@ -165,16 +166,16 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'appointments', element: <AppointmentsPage /> },
-      { path: 'calendar', element: <CalendarPage /> },
-      { path: 'customers', element: <CustomersPage /> },
-      { path: 'staff', element: <RoleRoute roles={['TENANT_ADMIN', 'MANAGER']}><StaffPage /></RoleRoute> },
-      { path: 'services', element: <RoleRoute roles={['TENANT_ADMIN', 'MANAGER']}><ServicesPage /></RoleRoute> },
-      { path: 'resources', element: <RoleRoute roles={['TENANT_ADMIN', 'MANAGER']}><ResourcesPage /></RoleRoute> },
-      { path: 'schedule', element: <RoleRoute roles={['TENANT_ADMIN', 'MANAGER']}><SchedulePage /></RoleRoute> },
-      { path: 'reports', element: <RoleRoute roles={['TENANT_ADMIN', 'MANAGER', 'STAFF']}><ReportsPage /></RoleRoute> },
-      { path: 'billing', element: <RoleRoute roles={['TENANT_ADMIN']}><BillingPage /></RoleRoute> },
-      { path: 'support-access', element: <RoleRoute roles={['TENANT_ADMIN']}><SupportAccessConsentPage /></RoleRoute> },
+      { path: 'appointments', lazy: async () => ({ Component: (await import('../features/appointments/pages/AppointmentsPage')).AppointmentsPage }) },
+      { path: 'calendar', lazy: async () => ({ Component: (await import('../features/appointments/pages/CalendarPage')).CalendarPage }) },
+      { path: 'customers', lazy: async () => ({ Component: (await import('../features/customers/pages/CustomersPage')).CustomersPage }) },
+      { path: 'staff', lazy: async () => ({ Component: () => <RoleRoute roles={['TENANT_ADMIN', 'MANAGER']}><LazyStaffPage /></RoleRoute> }) },
+      { path: 'services', lazy: async () => ({ Component: () => <RoleRoute roles={['TENANT_ADMIN', 'MANAGER']}><LazyServicesPage /></RoleRoute> }) },
+      { path: 'resources', lazy: async () => ({ Component: () => <RoleRoute roles={['TENANT_ADMIN', 'MANAGER']}><LazyResourcesPage /></RoleRoute> }) },
+      { path: 'schedule', lazy: async () => ({ Component: () => <RoleRoute roles={['TENANT_ADMIN', 'MANAGER']}><LazySchedulePage /></RoleRoute> }) },
+      { path: 'reports', lazy: async () => ({ Component: () => <RoleRoute roles={['TENANT_ADMIN', 'MANAGER', 'STAFF']}><LazyReportsPage /></RoleRoute> }) },
+      { path: 'billing', lazy: async () => ({ Component: () => <RoleRoute roles={['TENANT_ADMIN']}><LazyBillingPage /></RoleRoute> }) },
+      { path: 'support-access', lazy: async () => ({ Component: () => <RoleRoute roles={['TENANT_ADMIN']}><LazySupportAccessPage /></RoleRoute> }) },
       { index: true, element: <Navigate to="/dashboard" replace /> },
     ],
   },

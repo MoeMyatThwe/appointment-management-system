@@ -56,6 +56,7 @@ public class KafkaProducer {
         .setAppointmentId(appointment.getId().toString())
         .setName(customer == null ? "" : customer.getName())
         .setEmail(customer == null ? "" : customer.getEmail())
+        .setPhone(customer == null || customer.getPhone() == null ? "" : customer.getPhone())
         .setEventType(eventType)
         .setTenantId(appointment.getTenantId())
         .setCustomerId(appointment.getCustomerId())

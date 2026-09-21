@@ -1,6 +1,7 @@
 const ACCESS_TOKEN_KEY = 'accessToken'
 const REFRESH_TOKEN_KEY = 'refreshToken'
 const TENANT_ID_KEY = 'tenantId'
+const TIMEZONE_KEY = 'timezone'
 
 export function setSession(
   accessToken: string,
@@ -20,10 +21,19 @@ export function setSession(
   }
 }
 
+export function setTimezone(timezone: string) {
+  localStorage.setItem(TIMEZONE_KEY, timezone)
+}
+
+export function getTimezone() {
+  return localStorage.getItem(TIMEZONE_KEY)
+}
+
 export function clearSession() {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   localStorage.removeItem(TENANT_ID_KEY)
+  localStorage.removeItem(TIMEZONE_KEY)
 }
 
 export function getAccessToken() {

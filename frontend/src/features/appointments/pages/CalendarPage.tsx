@@ -12,25 +12,27 @@ import { SearchInput } from '../../../shared/components/SearchInput'
 import type { Appointment } from '../types'
 import { useAuthStore } from '../../auth/authStore'
 import { formatAppointmentDateTime, formatAppointmentTime, fromDateTimeLocal, toDateTimeLocal } from '../dateTime'
-import { FiChevronLeft, FiChevronRight, FiPlus, FiTarget } from 'react-icons/fi'
+import { FiChevronLeft, FiChevronRight, FiFilter, FiPlus, FiTarget } from 'react-icons/fi'
 import { AsyncCombobox } from '../../../shared/components/AsyncCombobox'
+import { Dialog } from '../../../shared/components/Dialog'
+import { StatusBadge } from '../../../shared/components/StatusBadge'
 import { useEscapeKey } from '../../../shared/hooks/useEscapeKey'
 
 type CalendarView = 'day' | 'week' | 'month' | 'agenda'
 
-function dateKey(date: Date) {
-  return date.toISOString().slice(0, 10)
+function dateKey(date: Date, timezone: string) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(date)
 }
 
 function startOfWeek(date: Date) {
   const start = new Date(date)
   start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
-  start.setHours(0, 0, 0, 0)
+  start.setHours(12, 0, 0, 0)
   return start
 }
 
 function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1)
+  return new Date(date.getFullYear(), date.getMonth(), 1, 12)
 }
 
 function statusClass(status: string) {
@@ -63,10 +65,12 @@ export function CalendarPage() {
   const [selected, setSelected] = useState<Appointment | null>(null)
   const [slot, setSlot] = useState<{ start: string; end: string } | null>(null)
   const [createForm, setCreateForm] = useState({ customerId: '', staffId: '', serviceId: '', resourceId: '', notes: '' })
+  const [showFilters, setShowFilters] = useState(false)
 
-  useEscapeKey(Boolean(slot || selected), () => {
+  useEscapeKey(Boolean(slot || selected || showFilters), () => {
     if (slot) setSlot(null)
-    else setSelected(null)
+    else if (selected) setSelected(null)
+    else setShowFilters(false)
   })
 
   const days = useMemo(() => {
@@ -83,15 +87,15 @@ export function CalendarPage() {
   }, [anchorDate, view])
 
   const appointments = useQuery({
-    queryKey: ['appointments', 'calendar', view, dateKey(days[0]), search, status, staffId, serviceId, resourceId],
+    queryKey: ['appointments', 'calendar', view, dateKey(days[0], timezone), search, status, staffId, serviceId, resourceId, timezone],
     queryFn: () => searchAppointments({
       search,
       status,
       staffId,
       serviceId,
       resourceId,
-      from: `${dateKey(days[0])}T00:00:00`,
-      to: `${dateKey(days[days.length - 1])}T23:59:59`,
+      from: fromDateTimeLocal(`${dateKey(days[0], timezone)}T00:00`, timezone),
+      to: fromDateTimeLocal(`${dateKey(days[days.length - 1], timezone)}T23:59:59`, timezone),
       page: 0,
       size: 100,
       sortBy: 'startTime',
@@ -120,9 +124,9 @@ export function CalendarPage() {
       const localEnd = toDateTimeLocal(appointment.endTime, timezone)
       const start = new Date(`1970-01-01T${localStart.slice(11)}`)
       const end = new Date(`1970-01-01T${localEnd.slice(11)}`)
-      const nextStartLocal = `${dateKey(day)}T${localStart.slice(11)}`
+      const nextStartLocal = `${dateKey(day, timezone)}T${localStart.slice(11)}`
       const nextEnd = new Date(start.getTime() + end.getTime() - start.getTime())
-      const nextEndLocal = `${dateKey(day)}T${nextEnd.toTimeString().slice(0, 5)}`
+      const nextEndLocal = `${dateKey(day, timezone)}T${nextEnd.toTimeString().slice(0, 5)}`
       return rescheduleAppointment(appointment.id, fromDateTimeLocal(nextStartLocal, timezone), fromDateTimeLocal(nextEndLocal, timezone))
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['appointments'] }),
@@ -132,7 +136,7 @@ export function CalendarPage() {
     const values = { view, date: anchorDate, search, status, staffId, serviceId, resourceId, ...next }
     const params = new URLSearchParams()
     if (values.view !== 'week') params.set('view', values.view)
-    params.set('date', dateKey(values.date))
+    params.set('date', dateKey(values.date, timezone))
     for (const [key, value] of Object.entries(values)) {
       if (key !== 'view' && key !== 'date' && typeof value === 'string' && value) params.set(key, value)
     }
@@ -165,7 +169,8 @@ export function CalendarPage() {
     start.setHours(hour, 0, 0, 0)
     const end = new Date(start)
     end.setMinutes(end.getMinutes() + 30)
-    setSlot({ start: toDateTimeLocal(start.toISOString(), timezone), end: toDateTimeLocal(end.toISOString(), timezone) })
+    const date = dateKey(day, timezone)
+    setSlot({ start: `${date}T${String(hour).padStart(2, '0')}:00`, end: `${date}T${String(hour).padStart(2, '0')}:30` })
   }
 
   const customerRecords = customers.data?.content ?? []
@@ -175,11 +180,12 @@ export function CalendarPage() {
   const visibleAppointments = appointments.data?.content ?? []
   const calendarGridClass = view === 'day' ? 'grid-cols-1' : 'grid-cols-7'
   const calendarWidthClass = view === 'month' ? 'min-w-[900px]' : 'min-w-[700px]'
-  const rangeStart = `${dateKey(days[0])}T00:00:00`
-  const rangeEnd = `${dateKey(days[days.length - 1])}T23:59:59`
+  const rangeStart = `${dateKey(days[0], timezone)}T00:00:00`
+  const rangeEnd = `${dateKey(days[days.length - 1], timezone)}T23:59:59`
   const totalAppointments = appointments.data?.totalElements ?? 0
   const visibleAppointmentLimit = appointments.data?.content.length ?? 0
   const hasOverflow = totalAppointments > visibleAppointmentLimit
+  const activeFilterCount = [search, status, staffId, serviceId, resourceId].filter(Boolean).length
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -187,32 +193,33 @@ export function CalendarPage() {
         <div><p className="text-sm font-semibold text-indigo-600">Schedule</p><h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Calendar</h2><p className="mt-2 text-sm text-slate-500">Calendar and list use the same appointment search rules.</p></div>
         <div className="flex flex-wrap gap-2">
           <button className="inline-flex items-center gap-2 rounded-lg bg-[#71809f] px-3 py-2 text-sm font-semibold text-[#0b1020]" type="button" onClick={() => { const next = new Date(); setAnchorDate(next); syncUrl({ date: next }) }}><FiTarget aria-hidden="true" />Today</button>
+          <button className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${activeFilterCount ? 'border-indigo-300 bg-indigo-600 text-white' : 'border-slate-300 text-slate-700 hover:bg-slate-800'}`} type="button" aria-expanded={showFilters} onClick={() => setShowFilters((open) => !open)}><FiFilter aria-hidden="true" />Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}</button>
           <button className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700" type="button" onClick={() => move(-1)}><FiChevronLeft aria-hidden="true" />Previous</button>
           <button className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700" type="button" onClick={() => move(1)}>Next<FiChevronRight aria-hidden="true" /></button>
           {(['day', 'week', 'month', 'agenda'] as CalendarView[]).map((option) => <button className={`rounded-lg px-3 py-2 text-sm font-semibold ${view === option ? 'bg-indigo-600 text-white' : 'border border-slate-300 text-slate-700'}`} type="button" key={option} onClick={() => changeView(option)}>{option[0].toUpperCase() + option.slice(1)}</button>)}
         </div>
       </div>
 
-      <FilterBar onClear={clearFilters}>
+      {showFilters ? <FilterBar onClear={() => { clearFilters(); setShowFilters(false) }}>
         <SearchInput value={search} placeholder="Search customer, email, service, staff, notes..." onChange={(value) => { setSearch(value); syncUrl({ search: value }) }} />
         <select className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" value={status} onChange={(event) => { setStatus(event.target.value); syncUrl({ status: event.target.value }) }}><option value="">All statuses</option><option value="PENDING">Pending</option><option value="CONFIRMED">Confirmed</option><option value="CHECKED_IN">Checked in</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option><option value="NO_SHOW">No-show</option></select>
         <AsyncCombobox value={staffId} selectedLabel={staffRecords.find((member) => member.id === staffId)?.name} placeholder="All staff" queryKey="calendar-staff" loadOptions={searchStaff} getOptionValue={(member) => member.id} getOptionLabel={(member) => member.name} onChange={(value) => { setStaffId(value); syncUrl({ staffId: value }) }} />
         <AsyncCombobox value={serviceId} selectedLabel={serviceRecords.find((service) => service.id === serviceId)?.name} placeholder="All services" queryKey="calendar-services" loadOptions={searchServices} getOptionValue={(service) => service.id} getOptionLabel={(service) => service.name} onChange={(value) => { setServiceId(value); syncUrl({ serviceId: value }) }} />
         <AsyncCombobox value={resourceId} selectedLabel={resourceRecords.find((resource) => resource.id === resourceId)?.name} placeholder="All resources" queryKey="calendar-resources" loadOptions={searchResources} getOptionValue={(resource) => resource.id} getOptionLabel={(resource) => resource.name} onChange={(value) => { setResourceId(value); syncUrl({ resourceId: value }) }} />
-      </FilterBar>
+      </FilterBar> : null}
 
       {hasOverflow ? <div className="mb-4 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between"><span>This range contains {totalAppointments} appointments. The calendar shows the first {visibleAppointmentLimit}; open the list to view all results.</span><Link className="font-semibold underline" to={`/appointments?from=${encodeURIComponent(rangeStart)}&to=${encodeURIComponent(rangeEnd)}${status ? `&status=${encodeURIComponent(status)}` : ''}`}>Open full list</Link></div> : null}
 
       <ListState loading={appointments.isLoading} error={appointments.isError} empty={false} loadingMessage="Loading calendar..." emptyMessage="No appointments match the current filters." onRetry={() => void appointments.refetch()}>
         {view === 'agenda' ? <div className="grid gap-3">
           {days.map((day) => {
-            const key = dateKey(day)
+            const key = dateKey(day, timezone)
             const dayAppointments = visibleAppointments.filter((appointment) => toDateTimeLocal(appointment.startTime, timezone).startsWith(key))
             return <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" key={key}><div className="flex items-center justify-between border-b border-slate-100 pb-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{day.toLocaleDateString(undefined, { weekday: 'long' })}</p><p className="mt-1 text-lg font-bold text-slate-900">{day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p></div><button className="rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-500" type="button" onClick={() => selectSlot(day)}>Add appointment</button></div><div className="mt-3 grid gap-2">{dayAppointments.map((appointment) => <button draggable className={`w-full rounded-xl border-l-4 p-3 text-left ${statusClass(appointment.status)}`} key={appointment.id} type="button" onClick={() => setSelected(appointment)} onDragStart={(event) => event.dataTransfer.setData('appointmentId', appointment.id)}><div className="flex items-start justify-between gap-3"><p className="text-xs font-bold">{formatAppointmentTime(appointment.startTime, timezone)} - {formatAppointmentTime(appointment.endTime, timezone)}</p><span className="text-[10px] font-bold uppercase tracking-wide">{appointment.status.replace('_', ' ')}</span></div><p className="mt-1 truncate text-sm font-semibold">{customerRecords.find((customer) => customer.id === appointment.customerId)?.name ?? 'Customer'}</p><p className="mt-1 truncate text-xs opacity-75">{serviceRecords.find((service) => service.id === appointment.serviceId)?.name ?? 'Service'}</p></button>)}{!dayAppointments.length ? <p className="py-3 text-sm text-slate-400">No appointments</p> : null}</div></section>
           })}
         </div> : <div className={`grid ${calendarWidthClass} ${calendarGridClass} gap-3 overflow-x-auto`}>
           {days.map((day) => {
-            const key = dateKey(day)
+            const key = dateKey(day, timezone)
             const dayAppointments = visibleAppointments.filter((appointment) => toDateTimeLocal(appointment.startTime, timezone).startsWith(key))
             return <section className={`${view === 'month' ? 'min-h-40' : 'min-h-96'} rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200`} key={key} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const id = event.dataTransfer.getData('appointmentId'); const appointment = visibleAppointments.find((item) => item.id === id); if (appointment) rescheduleMutation.mutate({ appointment, day }) }}>
               <button className="w-full border-b border-slate-100 pb-3 text-left" type="button" onClick={() => selectSlot(day)}><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{day.toLocaleDateString(undefined, { weekday: 'short' })}</p><p className="mt-1 text-xl font-bold text-slate-900">{day.getDate()}</p></button>
@@ -226,9 +233,26 @@ export function CalendarPage() {
         </div>}
       </ListState>
 
-      {slot ? <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/50 p-5" role="dialog" aria-modal="true" aria-labelledby="calendar-create-title"><form className="grid w-full max-w-md gap-4 rounded-2xl bg-white p-6 shadow-2xl" onSubmit={(event) => { event.preventDefault(); createMutation.mutate() }}><div><p className="text-sm font-semibold text-indigo-600">New appointment</p><h3 id="calendar-create-title" className="mt-1 text-xl font-bold text-slate-900">{slot.start.replace('T', ' ')}</h3></div><AsyncCombobox value={createForm.customerId} selectedLabel={customerRecords.find((customer) => customer.id === createForm.customerId)?.name} placeholder="Search customers..." queryKey="calendar-customers" loadOptions={searchCustomers} getOptionValue={(customer) => customer.id} getOptionLabel={(customer) => `${customer.name} · ${customer.email}`} onChange={(value) => setCreateForm({ ...createForm, customerId: value })} required /><AsyncCombobox value={createForm.staffId} selectedLabel={staffRecords.find((member) => member.id === createForm.staffId)?.name} placeholder="Search staff..." queryKey="calendar-create-staff" loadOptions={searchStaff} getOptionValue={(member) => member.id} getOptionLabel={(member) => member.name} onChange={(value) => setCreateForm({ ...createForm, staffId: value })} required /><AsyncCombobox value={createForm.serviceId} selectedLabel={serviceRecords.find((service) => service.id === createForm.serviceId)?.name} placeholder="Search services..." queryKey="calendar-create-services" loadOptions={searchServices} getOptionValue={(service) => service.id} getOptionLabel={(service) => service.name} onChange={(value) => setCreateForm({ ...createForm, serviceId: value })} required /><AsyncCombobox value={createForm.resourceId} selectedLabel={resourceRecords.find((resource) => resource.id === createForm.resourceId)?.name} placeholder="Search resources (optional)..." queryKey="calendar-create-resources" loadOptions={searchResources} getOptionValue={(resource) => resource.id} getOptionLabel={(resource) => resource.name} onChange={(value) => setCreateForm({ ...createForm, resourceId: value })} /><textarea className="rounded-lg border border-slate-300 px-3 py-2.5" placeholder="Notes" value={createForm.notes} onChange={(event) => setCreateForm({ ...createForm, notes: event.target.value })} /><div className="flex gap-2"><button className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white" type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Creating...' : 'Create appointment'}</button><button className="rounded-lg border border-slate-300 px-4 py-2.5 font-semibold" type="button" onClick={() => setSlot(null)}>Close</button></div></form></div> : null}
+      <Dialog open={Boolean(slot)} title={slot ? slot.start.replace('T', ' ') : 'New appointment'} eyebrow="New appointment" onClose={() => setSlot(null)}>
+        <form className="mt-5 grid gap-4" onSubmit={(event) => { event.preventDefault(); createMutation.mutate() }}>
+          <AsyncCombobox value={createForm.customerId} selectedLabel={customerRecords.find((customer) => customer.id === createForm.customerId)?.name} placeholder="Search customers..." queryKey="calendar-customers" loadOptions={searchCustomers} getOptionValue={(customer) => customer.id} getOptionLabel={(customer) => `${customer.name} · ${customer.email}`} onChange={(value) => setCreateForm({ ...createForm, customerId: value })} required />
+          <AsyncCombobox value={createForm.staffId} selectedLabel={staffRecords.find((member) => member.id === createForm.staffId)?.name} placeholder="Search staff..." queryKey="calendar-create-staff" loadOptions={searchStaff} getOptionValue={(member) => member.id} getOptionLabel={(member) => member.name} onChange={(value) => setCreateForm({ ...createForm, staffId: value })} required />
+          <AsyncCombobox value={createForm.serviceId} selectedLabel={serviceRecords.find((service) => service.id === createForm.serviceId)?.name} placeholder="Search services..." queryKey="calendar-create-services" loadOptions={searchServices} getOptionValue={(service) => service.id} getOptionLabel={(service) => service.name} onChange={(value) => setCreateForm({ ...createForm, serviceId: value })} required />
+          <AsyncCombobox value={createForm.resourceId} selectedLabel={resourceRecords.find((resource) => resource.id === createForm.resourceId)?.name} placeholder="Search resources (optional)..." queryKey="calendar-create-resources" loadOptions={searchResources} getOptionValue={(resource) => resource.id} getOptionLabel={(resource) => resource.name} onChange={(value) => setCreateForm({ ...createForm, resourceId: value })} />
+          <textarea className="rounded-lg border border-slate-300 px-3 py-2.5" placeholder="Notes" value={createForm.notes} onChange={(event) => setCreateForm({ ...createForm, notes: event.target.value })} />
+          <button className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white" type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Creating...' : 'Create appointment'}</button>
+        </form>
+      </Dialog>
 
-      {selected ? <div className="fixed inset-0 z-30 bg-slate-950/40" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null) }}><aside className="absolute inset-y-0 right-0 w-full max-w-md overflow-y-auto bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="calendar-details-title"><div className="flex items-start justify-between"><div><p className="text-sm font-semibold text-indigo-600">Appointment details</p><h3 id="calendar-details-title" className="mt-1 text-2xl font-bold text-slate-900">{customerRecords.find((customer) => customer.id === selected.customerId)?.name ?? 'Customer'}</h3></div><button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" type="button" onClick={() => setSelected(null)}>Close</button></div><dl className="mt-6 grid gap-4 text-sm"><div><dt className="font-semibold text-slate-500">When</dt><dd className="mt-1 text-slate-900">{formatAppointmentDateTime(selected.startTime, timezone)} - {formatAppointmentTime(selected.endTime, timezone)}</dd></div><div><dt className="font-semibold text-slate-500">Status</dt><dd className="mt-1 text-slate-900">{selected.status.replace('_', ' ')}</dd></div><div><dt className="font-semibold text-slate-500">Service</dt><dd className="mt-1 text-slate-900">{serviceRecords.find((service) => service.id === selected.serviceId)?.name ?? 'Service'}</dd></div><div><dt className="font-semibold text-slate-500">Staff</dt><dd className="mt-1 text-slate-900">{staffRecords.find((member) => member.id === selected.staffId)?.name ?? 'Staff'}</dd></div><div><dt className="font-semibold text-slate-500">Notes</dt><dd className="mt-1 whitespace-pre-wrap text-slate-900">{selected.notes || 'No notes'}</dd></div></dl></aside></div> : null}
+      <Dialog open={Boolean(selected)} title={selected ? customerRecords.find((customer) => customer.id === selected.customerId)?.name ?? 'Customer' : 'Appointment details'} eyebrow="Appointment details" variant="drawer" onClose={() => setSelected(null)}>
+        {selected ? <dl className="mt-6 grid gap-4 text-sm">
+          <div><dt className="font-semibold text-slate-500">When</dt><dd className="mt-1 text-slate-900">{formatAppointmentDateTime(selected.startTime, timezone)} - {formatAppointmentTime(selected.endTime, timezone)}</dd></div>
+          <div><dt className="font-semibold text-slate-500">Status</dt><dd className="mt-1"><StatusBadge label={selected.status.replace('_', ' ')} tone={selected.status === 'COMPLETED' ? 'success' : selected.status === 'CANCELLED' ? 'danger' : selected.status === 'NO_SHOW' ? 'warning' : 'info'} /></dd></div>
+          <div><dt className="font-semibold text-slate-500">Service</dt><dd className="mt-1 text-slate-900">{serviceRecords.find((service) => service.id === selected.serviceId)?.name ?? 'Service'}</dd></div>
+          <div><dt className="font-semibold text-slate-500">Staff</dt><dd className="mt-1 text-slate-900">{staffRecords.find((member) => member.id === selected.staffId)?.name ?? 'Staff'}</dd></div>
+          <div><dt className="font-semibold text-slate-500">Notes</dt><dd className="mt-1 whitespace-pre-wrap text-slate-900">{selected.notes || 'No notes'}</dd></div>
+        </dl> : null}
+      </Dialog>
     </div>
   )
 }

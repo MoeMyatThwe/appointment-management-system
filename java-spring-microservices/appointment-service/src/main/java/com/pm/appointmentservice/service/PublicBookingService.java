@@ -8,6 +8,7 @@ import com.pm.appointmentservice.model.AppointmentIdempotencyKey;
 import com.pm.appointmentservice.model.Customer;
 import com.pm.appointmentservice.model.ServiceOffering;
 import com.pm.appointmentservice.model.Staff;
+import com.pm.appointmentservice.model.StaffTimeOff;
 import com.pm.appointmentservice.model.PublicBookingToken;
 import com.pm.appointmentservice.repository.*;
 import java.time.*;
@@ -58,7 +59,12 @@ public class PublicBookingService {
         .uri("/internal/tenants/{tenant}/name", tenant)
         .header("X-Internal-Service-Key", internalServiceKey)
         .retrieve().body(String.class);
+    String timezone = authClient.get()
+        .uri("/internal/tenants/{tenant}/timezone", tenant)
+        .header("X-Internal-Service-Key", internalServiceKey)
+        .retrieve().body(String.class);
     return new PublicBookingCatalogDTO(businessName == null || businessName.isBlank() ? "Book an appointment" : businessName,
+        timezone == null || timezone.isBlank() ? "UTC" : timezone,
         services.findAllByTenantIdOrderByName(tenant).stream()
             .map(s -> new ServiceDTO(s.getId().toString(), s.getName(), s.getDurationMinutes(), s.getPrice(), s.getColor())).toList(),
         staff.findAllByTenantIdOrderByName(tenant).stream()
@@ -77,15 +83,19 @@ public class PublicBookingService {
     BusinessHoursDTO hours = schedule.getHours(tenant).stream()
         .filter(item -> item.dayOfWeek() == date.getDayOfWeek().getValue()).findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Business hours are not configured"));
-    if (!hours.enabled() || hours.openTime() == null || schedule.getHolidays(tenant).stream().anyMatch(h -> date.equals(h.holidayDate()))) return List.of();
+    if (!hours.enabled() || hours.openTime() == null
+        || schedule.isHoliday(tenant, date)) return List.of();
     List<PublicSlotDTO> result = new ArrayList<>();
-    String businessTimezone = authClient.get()
-        .uri("/internal/tenants/{tenant}/timezone", tenant)
-        .header("X-Internal-Service-Key", internalServiceKey)
-        .retrieve().body(String.class);
+    String businessTimezone = timezone;
     ZoneId zone = ZoneId.of(businessTimezone == null || businessTimezone.isBlank() ? "UTC" : businessTimezone);
     LocalDateTime cursor = LocalDateTime.of(date, hours.openTime());
     LocalDateTime close = LocalDateTime.of(date, hours.closeTime());
+    String windowStart = cursor.minusMinutes(bookingBufferMinutes).atZone(zone).toInstant().toString();
+    String windowEnd = close.plusMinutes(bookingBufferMinutes).atZone(zone).toInstant().toString();
+    List<Appointment> appointmentsInWindow =
+        appointments.findStaffOverlaps(tenant, staffId.toString(), windowStart, windowEnd);
+    List<StaffTimeOff> timeOffInWindow =
+        schedule.getOverlappingTimeOff(tenant, staffId.toString(), windowStart, windowEnd);
     while (!cursor.plusMinutes(duration).isAfter(close)) {
       LocalDateTime end = cursor.plusMinutes(duration);
       boolean inBreak = hours.breakStart() != null && cursor.toLocalTime().isBefore(hours.breakEnd())
@@ -94,12 +104,19 @@ public class PublicBookingService {
       String endUtc = end.atZone(zone).toInstant().toString();
       String conflictStart = cursor.minusMinutes(bookingBufferMinutes).atZone(zone).toInstant().toString();
       String conflictEnd = end.plusMinutes(bookingBufferMinutes).atZone(zone).toInstant().toString();
-      boolean occupied = appointments.existsStaffOverlap(tenant, staffId.toString(), conflictStart, conflictEnd);
-      boolean staffUnavailable = schedule.overlapsTimeOff(tenant, staffId.toString(), conflictStart, conflictEnd);
+      boolean occupied = appointmentsInWindow.stream()
+          .anyMatch(item -> overlaps(item.getStartTime(), item.getEndTime(), conflictStart, conflictEnd));
+      boolean staffUnavailable = timeOffInWindow.stream()
+          .anyMatch(item -> overlaps(item.getStartTime(), item.getEndTime(), conflictStart, conflictEnd));
       if (!inBreak && !occupied && !staffUnavailable) result.add(new PublicSlotDTO(startUtc, endUtc));
       cursor = cursor.plusMinutes(30);
     }
     return result;
+  }
+
+  private boolean overlaps(String existingStart, String existingEnd, String requestedStart,
+      String requestedEnd) {
+    return existingStart.compareTo(requestedEnd) < 0 && existingEnd.compareTo(requestedStart) > 0;
   }
 
   @Transactional
@@ -140,7 +157,12 @@ public class PublicBookingService {
     request.setCustomerId(customer.getId().toString()); request.setStaffId(staffId.toString());
     request.setServiceId(serviceId.toString()); request.setStartTime(input.startTime());
     request.setEndTime(input.endTime()); request.setStatus("PENDING"); request.setNotes(input.notes());
-    AppointmentResponseDTO result = appointmentService.createAppointment(request, tenant);
+    String businessTimezone = authClient.get()
+        .uri("/internal/tenants/{tenant}/timezone", tenant)
+        .header("X-Internal-Service-Key", internalServiceKey)
+        .retrieve().body(String.class);
+    AppointmentResponseDTO result = appointmentService.createAppointment(request, tenant,
+        businessTimezone == null || businessTimezone.isBlank() ? "UTC" : businessTimezone);
     String managementToken = issueManagementToken(tenant, UUID.fromString(result.getId()));
     result.setPublicManageToken(managementToken);
     if (normalizedKey != null) {

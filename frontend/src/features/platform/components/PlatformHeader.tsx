@@ -1,8 +1,12 @@
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../auth/authStore'
+import { ContextualHelp } from '../../../shared/components/ContextualHelp'
+import { getPageGuide } from '../../../shared/components/pageGuides'
 
 export function PlatformHeader() {
   const logout = useAuthStore((state) => state.logout)
+  const location = useLocation()
+  const pageGuide = getPageGuide(location.pathname)
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/85 backdrop-blur-md">
@@ -11,7 +15,9 @@ export function PlatformHeader() {
           Schedora Platform
         </Link>
 
-        <nav className="hidden items-center gap-2 md:flex">
+        <div className="flex items-center gap-2">
+          {pageGuide ? <ContextualHelp title={pageGuide.title} summary={pageGuide.summary} points={pageGuide.points} /> : null}
+          <nav className="hidden items-center gap-2 md:flex">
           <NavLink
             className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold transition ${isActive ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
             to="/platform"
@@ -37,7 +43,8 @@ export function PlatformHeader() {
           >
             Audit log
           </NavLink>
-        </nav>
+          </nav>
+        </div>
 
         <button
           className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800"

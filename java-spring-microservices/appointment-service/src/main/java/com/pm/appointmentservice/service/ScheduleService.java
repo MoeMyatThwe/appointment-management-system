@@ -99,6 +99,16 @@ public class ScheduleService {
             item.getStartTime(), item.getEndTime(), item.getReason())).toList();
   }
 
+  public List<StaffTimeOff> getOverlappingTimeOff(String tenantId, String staffId, String start,
+      String end) {
+    return timeOffRepository.findAllByTenantIdAndStaffIdAndStartTimeLessThanAndEndTimeGreaterThan(
+        tenantId, staffId, end, start);
+  }
+
+  public boolean isHoliday(String tenantId, LocalDate date) {
+    return holidayRepository.existsByTenantIdAndHolidayDate(tenantId, date);
+  }
+
   public StaffTimeOffDTO addTimeOff(String tenantId, StaffTimeOffDTO input, String timezone) {
     if (input.staffId() == null || input.staffId().isBlank()
         || input.startTime() == null || input.endTime() == null) {

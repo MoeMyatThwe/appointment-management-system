@@ -2,6 +2,7 @@ import { httpClient } from '../../shared/api/httpClient'
 
 export interface PublicBookingCatalog {
   businessName: string
+  timezone: string
   services: { id: string; name: string; durationMinutes?: number; price?: string; color?: string }[]
   staff: { id: string; name: string; email?: string; role?: string }[]
 }
@@ -13,9 +14,9 @@ export async function fetchPublicCatalog(tenantId: string) {
   return data
 }
 
-export async function fetchPublicSlots(tenantId: string, date: string, serviceId: string, staffId: string) {
+export async function fetchPublicSlots(tenantId: string, date: string, serviceId: string, staffId: string, timezone: string) {
   const { data } = await httpClient.get<PublicSlot[]>(`/public/booking/${tenantId}/slots`, {
-    params: { date, serviceId, staffId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
+    params: { date, serviceId, staffId, timezone },
   })
   return data
 }
@@ -54,11 +55,12 @@ export async function reschedulePublicBooking(
   tenantId: string,
   token: string,
   input: { startTime: string; endTime: string },
+  timezone: string,
 ) {
   const { data } = await httpClient.post<PublicManagedAppointment>(
     `/public/booking/${tenantId}/appointments/manage/${token}/reschedule`,
     input,
-    { headers: { 'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' } },
+    { headers: { 'X-Timezone': timezone } },
   )
   return data
 }

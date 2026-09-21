@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../authStore'
 import { FiAlertCircle, FiEye, FiEyeOff } from 'react-icons/fi'
+import { FormField } from '../../../shared/components/FormField'
 
 export function LoginPage() {
   const { login, isAuthenticated, isLoading, error } = useAuthStore()
@@ -32,12 +33,12 @@ export function LoginPage() {
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Sign in to your workspace</h2>
           <p className="mt-2 text-sm text-slate-500">Use your account email and password to continue.</p>
           <div className="mt-7 grid gap-4">
-            <label className="grid gap-1.5 text-sm font-semibold text-slate-700" htmlFor="email">Email
+            <FormField label="Email" htmlFor="email">
               <input className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100" autoComplete="email" id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-            </label>
-            <label className="grid gap-1.5 text-sm font-semibold text-slate-700" htmlFor="password">Password
+            </FormField>
+            <FormField label="Password" htmlFor="password">
               <span className="relative"><input className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 pl-3 pr-10 py-3 text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100" autoComplete="current-password" id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} required /><button className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent p-1 text-slate-500 shadow-none hover:text-slate-700" type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}</button></span>
-            </label>
+            </FormField>
         {error ? <p className="flex items-start gap-2 rounded-xl border border-rose-300/30 bg-rose-950/30 px-3 py-3 text-sm leading-5 text-rose-200"><FiAlertCircle className="mt-0.5 shrink-0 text-rose-300" size={18} aria-hidden="true" />{error}</p> : null}
         <button className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-700" type="submit" disabled={isLoading}>
           {isLoading ? 'Signing in...' : 'Sign in'}

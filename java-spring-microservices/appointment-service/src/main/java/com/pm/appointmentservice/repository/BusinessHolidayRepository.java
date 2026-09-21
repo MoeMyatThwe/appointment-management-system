@@ -9,4 +9,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BusinessHolidayRepository extends JpaRepository<BusinessHoliday, UUID> {
   List<BusinessHoliday> findAllByTenantIdOrderByHolidayDate(String tenantId);
   boolean existsByTenantIdAndHolidayDate(String tenantId, LocalDate holidayDate);
+  boolean existsByTenantIdAndHolidayDateBetween(String tenantId, LocalDate startDate, LocalDate endDate);
 }

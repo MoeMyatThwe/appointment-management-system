@@ -7,7 +7,7 @@ interface FilterBarProps {
 
 export function FilterBar({ children, onClear }: FilterBarProps) {
   return (
-    <div className="mb-4 grid min-w-0 gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="mb-4 grid min-w-0 gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:grid-cols-2 lg:grid-cols-3" role="search" aria-label="Filter results">
       {children}
       {onClear ? (
         <button

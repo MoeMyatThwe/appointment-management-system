@@ -12,4 +12,6 @@ public interface StaffTimeOffRepository extends JpaRepository<StaffTimeOff, UUID
       String tenantId, String staffId, Pageable pageable);
   boolean existsByTenantIdAndStaffIdAndStartTimeLessThanAndEndTimeGreaterThan(
       String tenantId, String staffId, String endTime, String startTime);
+  List<StaffTimeOff> findAllByTenantIdAndStaffIdAndStartTimeLessThanAndEndTimeGreaterThan(
+      String tenantId, String staffId, String endTime, String startTime);
 }

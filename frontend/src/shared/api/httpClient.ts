@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
-import { clearSession, getRefreshToken, setSession } from '../../features/auth/authStorage'
+import { clearSession, getRefreshToken, getTimezone, setSession } from '../../features/auth/authStorage'
 
 const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
 const API_BASE_URL = configuredBaseUrl && configuredBaseUrl !== '/' ? configuredBaseUrl.replace(/\/$/, '') : '/'
@@ -15,6 +15,30 @@ interface RetriableRequestConfig extends InternalAxiosRequestConfig {
   _authRetry?: boolean
 }
 
+interface RefreshResponse {
+  accessToken: string
+  refreshToken: string
+  tenantId: string
+}
+
+let refreshPromise: Promise<RefreshResponse> | null = null
+
+function refreshSession(refreshToken: string) {
+  if (!refreshPromise) {
+    refreshPromise = axios.post<RefreshResponse>(
+      API_BASE_URL === '/' ? '/auth/refresh' : `${API_BASE_URL}/auth/refresh`,
+      { refreshToken },
+      { headers: { 'Content-Type': 'application/json' } },
+    ).then(({ data }) => {
+      setSession(data.accessToken, data.tenantId, data.refreshToken)
+      return data
+    }).finally(() => {
+      refreshPromise = null
+    })
+  }
+  return refreshPromise
+}
+
 httpClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken')
   const tenantId = localStorage.getItem('tenantId')
@@ -26,6 +50,8 @@ httpClient.interceptors.request.use((config) => {
   if (tenantId && tenantId !== 'undefined' && tenantId !== 'null') {
     config.headers['X-Tenant-Id'] = tenantId
   }
+
+  config.headers['X-Timezone'] = getTimezone() ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC'
 
   return config
 })
@@ -47,12 +73,7 @@ httpClient.interceptors.response.use(
 
     original._authRetry = true
     try {
-      const { data } = await axios.post<{ accessToken: string; refreshToken: string; tenantId: string }>(
-        API_BASE_URL === '/' ? '/auth/refresh' : `${API_BASE_URL}/auth/refresh`,
-        { refreshToken },
-        { headers: { 'Content-Type': 'application/json' } },
-      )
-      setSession(data.accessToken, data.tenantId, data.refreshToken)
+      const data = await refreshSession(refreshToken)
       original.headers.Authorization = `Bearer ${data.accessToken}`
       return httpClient(original)
     } catch (refreshError) {

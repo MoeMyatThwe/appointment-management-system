@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { clearSession, getAccessToken, getRefreshToken, setSession } from './authStorage'
+import { clearSession, getAccessToken, getRefreshToken, setSession, setTimezone } from './authStorage'
 import type { CurrentUser } from './types'
 import { fetchCurrentUser, login as loginRequest, logout as logoutRequest } from './authApi'
 import { getApiErrorMessage } from '../../shared/api/apiError'
@@ -34,6 +34,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true, error: null })
     try {
       const user = await fetchCurrentUser()
+      setTimezone(user.timezone)
       set({ user, isAuthenticated: true, isLoading: false })
     } catch {
       clearSession()
@@ -46,6 +47,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const session = await loginRequest(input)
       setSession(session.accessToken, session.tenantId, session.refreshToken)
       const user = await fetchCurrentUser()
+      setTimezone(user.timezone)
       set({ user, isAuthenticated: true, isLoading: false })
     } catch (error) {
       clearSession()

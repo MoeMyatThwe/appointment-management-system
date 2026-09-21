@@ -4,6 +4,8 @@ import { addHoliday, fetchBusinessHours, fetchHolidays, saveBusinessHours } from
 import type { BusinessHours } from '../types'
 import { useEscapeKey } from '../../../shared/hooks/useEscapeKey'
 import { FiCheck, FiCopy, FiPlus, FiSave, FiZap, FiX } from 'react-icons/fi'
+import { useToast } from '../../../shared/components/ToastProvider'
+import { getApiErrorMessage } from '../../../shared/api/apiError'
 
 function formatDay(dayName: string) {
   return dayName.charAt(0) + dayName.slice(1).toLowerCase()
@@ -15,6 +17,7 @@ function timeValue(value: string | null | undefined, fallback: string) {
 
 export function SchedulePage() {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const hoursQuery = useQuery({ queryKey: ['business-hours'], queryFn: fetchBusinessHours })
   const holidaysQuery = useQuery({ queryKey: ['holidays'], queryFn: fetchHolidays })
   const [hours, setHours] = useState<BusinessHours[]>([])
@@ -54,7 +57,9 @@ export function SchedulePage() {
     onSuccess: (saved) => {
       setHours(saved)
       void queryClient.invalidateQueries({ queryKey: ['business-hours'] })
+      showToast('Business hours saved successfully.', 'success')
     },
+    onError: (error) => showToast(getApiErrorMessage(error), 'error'),
   })
   const holidayMutation = useMutation({
     mutationFn: addHoliday,
@@ -63,7 +68,9 @@ export function SchedulePage() {
       setHolidayDate('')
       setShowHolidayForm(false)
       void queryClient.invalidateQueries({ queryKey: ['holidays'] })
+      showToast('Closure added successfully.', 'success')
     },
+    onError: (error) => showToast(getApiErrorMessage(error), 'error'),
   })
 
   function updateDay(dayOfWeek: number, changes: Partial<BusinessHours>) {
@@ -120,23 +127,23 @@ export function SchedulePage() {
             <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700" type="button" onClick={() => saveMutation.mutate(hours)} disabled={saveMutation.isPending || hours.length !== 7}><FiSave aria-hidden="true" />{saveMutation.isPending ? 'Saving...' : 'Save schedule'}</button>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-indigo-200/60 bg-indigo-50/50 p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="mt-5 rounded-2xl border border-indigo-200/60 bg-indigo-50/50 p-4 sm:p-5">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
               <div><div className="flex items-center gap-2"><FiZap className="text-indigo-600" aria-hidden="true" /><h4 className="font-semibold text-slate-900">Quick apply</h4></div><p className="mt-1 text-sm text-slate-600">Set the same hours for several days at once.</p></div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 lg:justify-end">
                 <button className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100" type="button" onClick={() => choosePreset(weekdayIds)}>Weekdays</button>
                 <button className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100" type="button" onClick={copyMondayToWeekdays}><FiCopy aria-hidden="true" />Copy Monday to weekdays</button>
               </div>
             </div>
-            <div className="mt-4 grid gap-4">
-              <div className="flex flex-wrap gap-2">
-                {hours.map((day) => <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${selectedDays.includes(day.dayOfWeek) ? 'border-indigo-400 bg-indigo-100 text-indigo-800' : 'border-slate-300 bg-white text-slate-600'}`} key={day.dayOfWeek}><input className="sr-only" type="checkbox" checked={selectedDays.includes(day.dayOfWeek)} onChange={() => toggleSelectedDay(day.dayOfWeek)} /><span className={`flex h-4 w-4 items-center justify-center rounded border ${selectedDays.includes(day.dayOfWeek) ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-400'}`}>{selectedDays.includes(day.dayOfWeek) ? <FiCheck size={11} aria-hidden="true" /> : null}</span>{formatDay(day.dayName).slice(0, 3)}</label>)}
+            <div className="mt-5 grid gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                {hours.map((day) => <label className={`inline-flex min-w-0 cursor-pointer items-center justify-center gap-2 rounded-lg border px-2 py-2 text-sm font-semibold transition ${selectedDays.includes(day.dayOfWeek) ? 'border-indigo-400 bg-indigo-100 text-indigo-800' : 'border-slate-300 bg-white text-slate-600'}`} key={day.dayOfWeek}><input className="sr-only" type="checkbox" checked={selectedDays.includes(day.dayOfWeek)} onChange={() => toggleSelectedDay(day.dayOfWeek)} /><span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${selectedDays.includes(day.dayOfWeek) ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-400'}`}>{selectedDays.includes(day.dayOfWeek) ? <FiCheck size={11} aria-hidden="true" /> : null}</span>{formatDay(day.dayName).slice(0, 3)}</label>)}
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(130px,1fr)_minmax(130px,1fr)_auto_minmax(150px,auto)]">
                 <label className="grid gap-1 text-xs font-semibold text-slate-600">Opens<input className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" type="time" value={bulkOpenTime} onChange={(event) => setBulkOpenTime(event.target.value)} /></label>
                 <label className="grid gap-1 text-xs font-semibold text-slate-600">Closes<input className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" type="time" value={bulkCloseTime} onChange={(event) => setBulkCloseTime(event.target.value)} /></label>
-                <label className="flex items-center gap-2 self-end pb-3 text-sm font-medium text-slate-700"><input type="checkbox" checked={bulkHasBreak} onChange={(event) => setBulkHasBreak(event.target.checked)} />Add break</label>
-                <button className="inline-flex items-center justify-center gap-2 self-end rounded-lg bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={applyBulkSchedule} disabled={!selectedDays.length}><FiCheck aria-hidden="true" />Apply to {selectedDays.length || 'selected'} days</button>
+                <label className="flex min-h-[42px] items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={bulkHasBreak} onChange={(event) => setBulkHasBreak(event.target.checked)} />Add break</label>
+                <button className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={applyBulkSchedule} disabled={!selectedDays.length}><FiCheck aria-hidden="true" />Apply to {selectedDays.length || 'selected'} days</button>
               </div>
               {bulkHasBreak ? <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-xs font-semibold text-slate-600">Break starts<input className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" type="time" value={bulkBreakStart} onChange={(event) => setBulkBreakStart(event.target.value)} /></label><label className="grid gap-1 text-xs font-semibold text-slate-600">Break ends<input className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" type="time" value={bulkBreakEnd} onChange={(event) => setBulkBreakEnd(event.target.value)} /></label></div> : null}
             </div>

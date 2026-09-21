@@ -15,6 +15,14 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  notification-service-db:
+    ports: []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
   auth-service:
     ports: []
     environment:
@@ -59,6 +67,9 @@ services:
     ports: []
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: ${NOTIFICATION_DATABASE_URL:?NOTIFICATION_DATABASE_URL must be set}
+      SPRING_DATASOURCE_USERNAME: ${DATABASE_USERNAME:?DATABASE_USERNAME must be set}
+      SPRING_DATASOURCE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD must be set}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       NOTIFICATION_EMAIL_PROVIDER: ${NOTIFICATION_EMAIL_PROVIDER:-none}
       NOTIFICATION_SMS_PROVIDER: ${NOTIFICATION_SMS_PROVIDER:-none}

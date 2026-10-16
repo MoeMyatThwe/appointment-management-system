@@ -16,7 +16,9 @@ public class AppointmentMapper {
     appointmentDTO.setCalendarId(appointment.getCalendarId());
     appointmentDTO.setStartTime(appointment.getStartTime());
     appointmentDTO.setEndTime(appointment.getEndTime());
-    appointmentDTO.setStatus(appointment.getStatus());
+    appointmentDTO.setStatus(appointment.getStatus() == null
+        ? null
+        : appointment.getStatus().trim().toUpperCase());
     appointmentDTO.setNotes(appointment.getNotes());
     appointmentDTO.setCreatedAt(appointment.getCreatedAt());
     appointmentDTO.setUpdatedAt(appointment.getUpdatedAt());

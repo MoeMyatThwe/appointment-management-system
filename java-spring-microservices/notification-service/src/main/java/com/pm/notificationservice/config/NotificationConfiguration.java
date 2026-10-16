@@ -2,6 +2,7 @@ package com.pm.notificationservice.config;
 
 import com.pm.notificationservice.adapter.NotificationAdapter;
 import com.pm.notificationservice.adapter.ProviderAdapter;
+import com.pm.notificationservice.adapter.ResendEmailAdapter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,7 +11,12 @@ import org.springframework.context.annotation.Configuration;
 public class NotificationConfiguration {
   @Bean
   NotificationAdapter emailAdapter(@Value("${notification.email.provider:none}") String provider,
-      @Value("${notification.email.webhook-url:}") String webhookUrl) {
+      @Value("${notification.email.webhook-url:}") String webhookUrl,
+      @Value("${notification.email.api-key:}") String apiKey,
+      @Value("${notification.email.from:}") String from) {
+    if ("resend".equalsIgnoreCase(provider)) {
+      return new ResendEmailAdapter(apiKey, from);
+    }
     return new ProviderAdapter("email", provider, webhookUrl);
   }
 

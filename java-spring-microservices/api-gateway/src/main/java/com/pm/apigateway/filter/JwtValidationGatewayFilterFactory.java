@@ -53,10 +53,11 @@ public class JwtValidationGatewayFilterFactory extends
               .filter(WebClientRequestException.class::isInstance))
           .flatMap(response -> {
             String tenantId = response.getHeaders().getFirst("X-Tenant-ID");
+            String userId = response.getHeaders().getFirst("X-User-ID");
             String role = response.getHeaders().getFirst("X-User-Role");
             String email = response.getHeaders().getFirst("X-User-Email");
             String timezone = response.getHeaders().getFirst("X-Timezone");
-            if (tenantId == null || role == null || email == null || timezone == null) {
+            if (tenantId == null || userId == null || role == null || email == null || timezone == null) {
               log.warn("JWT validation returned incomplete identity headers");
               exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
               return exchange.getResponse().setComplete();
@@ -64,6 +65,7 @@ public class JwtValidationGatewayFilterFactory extends
             ServerWebExchange enrichedExchange = exchange.mutate()
                 .request(request -> request.headers(headers -> {
                   headers.set("X-Tenant-ID", tenantId);
+                  headers.set("X-User-ID", userId);
                   headers.set("X-User-Role", role);
                   headers.set("X-User-Email", email);
                   headers.set("X-Timezone", timezone);

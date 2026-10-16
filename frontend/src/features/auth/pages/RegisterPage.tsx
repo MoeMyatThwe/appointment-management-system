@@ -77,6 +77,7 @@ export function RegisterPage() {
             </button>
           </div>
           <p className="mt-6 text-center text-sm text-slate-500">Already have an account? <Link className="font-semibold text-indigo-600 hover:text-indigo-700" to="/login">Sign in</Link></p>
+          <p className="mt-3 text-center text-sm text-slate-500">Booking as a customer? <Link className="font-semibold text-indigo-600 hover:text-indigo-700" to="/customer/register">Create a customer account</Link></p>
         </form>
       </section>
     </main>

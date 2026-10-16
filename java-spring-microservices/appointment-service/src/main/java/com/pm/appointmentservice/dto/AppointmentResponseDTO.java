@@ -15,6 +15,7 @@ public class AppointmentResponseDTO {
   private String createdAt;
   private String updatedAt;
   private String publicManageToken;
+  private String paymentStatus;
 
   public String getId() {
     return id;
@@ -128,5 +129,12 @@ public class AppointmentResponseDTO {
     this.publicManageToken = publicManageToken;
   }
 
+  public String getPaymentStatus() {
+    return paymentStatus;
+  }
+
+  public void setPaymentStatus(String paymentStatus) {
+    this.paymentStatus = paymentStatus;
+  }
 
 }

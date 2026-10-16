@@ -1,6 +1,7 @@
 package com.pm.appointmentservice.repository;
 
 import com.pm.appointmentservice.model.AppointmentPayment;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,8 @@ import jakarta.persistence.LockModeType;
 public interface AppointmentPaymentRepository extends JpaRepository<AppointmentPayment, UUID> {
   Optional<AppointmentPayment> findByAppointmentIdAndTenantId(UUID appointmentId, String tenantId);
   Optional<AppointmentPayment> findByAppointmentId(UUID appointmentId);
+
+  List<AppointmentPayment> findAllByTenantId(String tenantId);
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select p from AppointmentPayment p where p.appointmentId = :appointmentId and p.tenantId = :tenantId")
   Optional<AppointmentPayment> findByAppointmentIdAndTenantIdForUpdate(

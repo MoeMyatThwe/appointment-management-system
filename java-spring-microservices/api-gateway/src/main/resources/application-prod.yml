@@ -32,10 +32,30 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: authenticated-public-booking-route
+          uri: ${APPOINTMENT_SERVICE_URL}
+          predicates:
+            - Path=/public/booking/*/appointments/**
+          filters:
+            - JwtValidation
+
+        - id: public-booking-route
+          uri: ${APPOINTMENT_SERVICE_URL}
+          predicates:
+            - Path=/public/booking/**
+
         - id: appointment-service-route
           uri: ${APPOINTMENT_SERVICE_URL}
           predicates:
             - Path=/api/appointments/**
+          filters:
+            - StripPrefix=1
+            - JwtValidation
+
+        - id: customer-portal-route
+          uri: ${APPOINTMENT_SERVICE_URL}
+          predicates:
+            - Path=/api/customer/**
           filters:
             - StripPrefix=1
             - JwtValidation

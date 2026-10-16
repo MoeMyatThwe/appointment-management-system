@@ -5,10 +5,13 @@ import com.pm.authservice.dto.LoginResponseDTO;
 import com.pm.authservice.dto.AuthSessionDTO;
 import com.pm.authservice.dto.CurrentUserResponseDTO;
 import com.pm.authservice.dto.RegisterRequestDTO;
+import com.pm.authservice.dto.CustomerRegisterRequestDTO;
 import com.pm.authservice.dto.WorkspaceProfileDTO;
 import com.pm.authservice.model.User;
+import com.pm.authservice.model.CustomerAccount;
 import com.pm.authservice.service.AuthService;
 import com.pm.authservice.service.UserService;
+import com.pm.authservice.repository.CustomerAccountRepository;
 import com.pm.authservice.service.PlatformAdminService;
 import com.pm.authservice.service.SubscriptionPlanService;
 import com.pm.authservice.service.StripeSubscriptionService;
@@ -65,6 +68,7 @@ public class AuthController {
   private final SupportAccessService supportAccessService;
   private final PlatformSettingsService platformSettingsService;
   private final RecoveryService recoveryService;
+  private final CustomerAccountRepository customerAccounts;
   @Value("${internal.service-key:}")
   private String internalServiceKey;
 
@@ -72,7 +76,7 @@ public class AuthController {
       PlatformAdminService platformAdminService, SubscriptionPlanService subscriptionPlanService,
       StripeSubscriptionService stripeSubscriptionService, SupportAccessService supportAccessService,
       PlatformSettingsService platformSettingsService,
-      RecoveryService recoveryService) {
+      RecoveryService recoveryService, CustomerAccountRepository customerAccounts) {
     this.authService = authService;
     this.userService = userService;
     this.platformAdminService = platformAdminService;
@@ -81,6 +85,7 @@ public class AuthController {
     this.supportAccessService = supportAccessService;
     this.platformSettingsService = platformSettingsService;
     this.recoveryService = recoveryService;
+    this.customerAccounts = customerAccounts;
   }
 
   @PostMapping("/recovery/request")
@@ -132,7 +137,12 @@ public class AuthController {
     String email = authService.getClaims(token).getSubject();
     Optional<User> userOptional = userService.findByEmail(email);
     if (userOptional.isEmpty()) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+      return customerAccounts.findByEmail(email)
+          .filter(account -> account.isActive() && "ACTIVE".equalsIgnoreCase(account.getAccountStatus()))
+          .map(account -> ResponseEntity.ok(new CurrentUserResponseDTO(
+              account.getId().toString(), "", account.getEmail(), account.getEmail(),
+              account.getRole(), "", "UTC", true)))
+          .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     User user = userOptional.get();
@@ -213,6 +223,34 @@ public class AuthController {
       return ResponseEntity.status(HttpStatus.CONFLICT)
           .body(Map.of("message", error.getMessage()));
     }
+
+  }
+
+  @Operation(summary = "Generate token on customer login")
+  @PostMapping("/customer/login")
+  public ResponseEntity<LoginResponseDTO> customerLogin(
+      @RequestBody LoginRequestDTO loginRequestDTO) {
+    Optional<AuthSessionDTO> sessionOptional = authService.authenticateCustomer(loginRequestDTO);
+    if (sessionOptional.isEmpty()) {
+      auditLog.warn("event=CUSTOMER_LOGIN_FAILURE email={}", loginRequestDTO.getEmail());
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    AuthSessionDTO session = sessionOptional.get();
+    auditLog.info("event=CUSTOMER_LOGIN_SUCCESS email={}", loginRequestDTO.getEmail());
+    return ResponseEntity.ok(new LoginResponseDTO(session.accessToken(), session.refreshToken(), session.tenantId()));
+  }
+
+  @Operation(summary = "Create a customer account")
+  @PostMapping("/customer/register")
+  public ResponseEntity<?> customerRegister(
+      @jakarta.validation.Valid @RequestBody CustomerRegisterRequestDTO request) {
+    try {
+      AuthSessionDTO session = authService.registerCustomer(request);
+      return ResponseEntity.ok(new LoginResponseDTO(session.accessToken(), session.refreshToken(), session.tenantId()));
+    } catch (IllegalArgumentException error) {
+      return ResponseEntity.status(HttpStatus.CONFLICT)
+          .body(Map.of("message", error.getMessage()));
+    }
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -247,17 +285,34 @@ public class AuthController {
 
     var claims = authService.getClaims(authHeader.substring(7));
     Optional<User> user = userService.findByEmail(claims.getSubject());
-    if (user.isEmpty() || !user.get().isActive()
-        || !"ACTIVE".equalsIgnoreCase(user.get().getAccountStatus())) {
+    Optional<CustomerAccount> customer = customerAccounts.findByEmail(claims.getSubject());
+    if (user.isEmpty() && customer.isEmpty()) {
       auditLog.warn("event=TOKEN_VALIDATION_FAILURE reason=inactive_or_missing_user subject={}",
           claims.getSubject());
       return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
+    if (user.isPresent() && (!user.get().isActive()
+        || !"ACTIVE".equalsIgnoreCase(user.get().getAccountStatus()))) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
+    if (customer.isPresent() && (!customer.get().isActive()
+        || !"ACTIVE".equalsIgnoreCase(customer.get().getAccountStatus()))) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
     HttpHeaders headers = new HttpHeaders();
-    headers.set("X-Tenant-ID", user.get().getTenantId());
-    headers.set("X-User-Role", user.get().getRole());
-    headers.set("X-User-Email", user.get().getEmail());
-    headers.set("X-Timezone", user.get().getTimezone() == null ? "UTC" : user.get().getTimezone());
+    if (user.isPresent()) {
+      headers.set("X-User-ID", user.get().getId().toString());
+      headers.set("X-Tenant-ID", user.get().getTenantId());
+      headers.set("X-User-Role", user.get().getRole());
+      headers.set("X-User-Email", user.get().getEmail());
+      headers.set("X-Timezone", user.get().getTimezone() == null ? "UTC" : user.get().getTimezone());
+    } else {
+      headers.set("X-User-ID", customer.get().getId().toString());
+      headers.set("X-Tenant-ID", "");
+      headers.set("X-User-Role", customer.get().getRole());
+      headers.set("X-User-Email", customer.get().getEmail());
+      headers.set("X-Timezone", "UTC");
+    }
     auditLog.info("event=TOKEN_VALIDATION_SUCCESS subject={}", claims.getSubject());
     return ResponseEntity.ok().headers(headers).build();
   }

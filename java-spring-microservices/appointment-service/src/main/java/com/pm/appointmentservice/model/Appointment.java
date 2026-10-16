@@ -41,6 +41,9 @@ public class Appointment {
   private String createdAt;
   @NotNull
   private String updatedAt;
+  @Column(nullable = false) private boolean paymentRequired = false;
+  private java.time.OffsetDateTime paymentDeadline;
+  private java.time.OffsetDateTime bookingHoldExpiresAt;
 
   public UUID getId() {
     return id;
@@ -153,5 +156,12 @@ public class Appointment {
   public void setUpdatedAt(String updatedAt) {
     this.updatedAt = updatedAt;
   }
+
+  public boolean isPaymentRequired() { return paymentRequired; }
+  public void setPaymentRequired(boolean value) { paymentRequired = value; }
+  public java.time.OffsetDateTime getPaymentDeadline() { return paymentDeadline; }
+  public void setPaymentDeadline(java.time.OffsetDateTime value) { paymentDeadline = value; }
+  public java.time.OffsetDateTime getBookingHoldExpiresAt() { return bookingHoldExpiresAt; }
+  public void setBookingHoldExpiresAt(java.time.OffsetDateTime value) { bookingHoldExpiresAt = value; }
 
 }

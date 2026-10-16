@@ -18,6 +18,12 @@ public final class AccessPolicy {
     }
   }
 
+  public static void requireCustomer(String role) {
+    if (!isAny(role, "CUSTOMER")) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Customer role required");
+    }
+  }
+
   private static boolean isAny(String role, String... allowed) {
     for (String candidate : allowed) {
       if (candidate.equalsIgnoreCase(role)) return true;

@@ -21,6 +21,10 @@ public class UserService {
     return userRepository.findByEmail(email);
   }
 
+  public boolean existsByEmail(String email) {
+    return userRepository.existsByEmail(email);
+  }
+
   public Optional<User> findById(UUID id) {
     return userRepository.findById(id);
   }

@@ -64,12 +64,13 @@ stale role or tenant claims from an otherwise valid token.
 
 ### Who uses the product?
 
-There are two different roles:
+There are three identity types:
 
 | Role | Meaning | Main responsibility |
 | --- | --- | --- |
 | **SaaS platform owner** | You, the developer/company operating this software | Manage the platform, tenants, plans, billing, support, security, and infrastructure |
 | **Business owner / tenant** | A customer borrowing the software for their own business | Manage staff, services, customers, appointments, payments, and booking |
+| **Customer** | A person booking an appointment with a spa or other business | Manage their profile, bookings, online payments, cancellations, and refunds |
 
 The current application is primarily the **business owner / tenant
 workspace**. When someone registers, they create one private business
@@ -84,6 +85,23 @@ branding, and reporting.
 If one customer operates multiple separate businesses, the safe model is one
 workspace per business. Each workspace has its own staff, services, customers,
 appointments, settings, and booking link.
+
+Customer identity is separate from workspace identity. A customer can have one
+account and book with multiple businesses; the account must not create a tenant,
+access business reports, or view another customer's records. The planned
+customer role is implemented as `CUSTOMER`, while business roles remain `TENANT_ADMIN`,
+`ADMIN`, `MANAGER`, and `STAFF`.
+
+Customer authentication is exposed through the gateway at:
+
+- `POST /auth/customer/register` with `email` and an 8-100 character `password`
+- `POST /auth/customer/login` with `email` and `password`
+- `POST /auth/refresh` with the returned `refreshToken`
+
+Customer sessions have role `CUSTOMER` and no tenant ownership. A customer
+account can therefore be reused across businesses without receiving access to
+business administration data. Keep local test credentials out of committed
+documentation; create a unique test email during verification.
 
 The SaaS platform-admin console is implemented in an initial account-management
 form. Platform support access should be explicit, permission-controlled,
@@ -357,6 +375,34 @@ business tenant.
    balance.
 5. Keep the receipt number for the customer’s records.
 
+### Online booking payment policy
+
+Each workspace has a booking payment policy:
+
+- `PAY_LATER`: create the appointment without an upfront payment.
+- `DEPOSIT`: require the configured percentage before the booking hold expires.
+- `FULL`: require the complete appointment amount before the booking hold expires.
+
+Business managers can read or update the policy through:
+
+```text
+GET /api/appointments/payment-policy
+PUT /api/appointments/payment-policy
+```
+
+For `DEPOSIT` and `FULL`, the appointment receives a 30-minute payment deadline
+and is automatically cancelled when the required payment is not confirmed.
+Stripe Checkout creates a server-owned session, and payment status changes only
+after a verified Stripe webhook or server-side session confirmation. Customers
+can open Checkout for their own appointments; business users retain manual
+payment and refund controls.
+
+Cancellation refunds are calculated server-side from the paid amount and the
+workspace cancellation policy. Stripe payments use Stripe Refunds with the
+payment intent ID; manual payments are recorded locally. Refund operations are
+tracked with `amount_refunded` and `refund_status` and are idempotent with
+respect to the refundable balance.
+
 Payment amounts and status are calculated by the service; client requests cannot
 mark a payment as paid, change its currency, overpay an appointment, or refund
 the same payment twice. Payment writes are serialized per appointment, provider
@@ -367,7 +413,7 @@ Stripe Checkout uses test mode when `STRIPE_SECRET_KEY` is configured in the
 local `.env` file. Subscription checkout uses the same secret, while signed
 webhook synchronization additionally requires `STRIPE_WEBHOOK_SECRET`.
 
-### Public customer booking workflow
+### Customer portal and booking workflow
 
 The owner can select **Open public booking page** from the dashboard or use:
 
@@ -375,12 +421,34 @@ The owner can select **Open public booking page** from the dashboard or use:
 http://localhost:5173/book/{tenantId}
 ```
 
+The catalog, available dates, and time slots are public. The customer must
+register or sign in before submitting a booking. The API gateway validates the
+customer JWT and forwards the customer account ID, email, role, and timezone to
+the appointment service.
+
+Customers use `/customer/login` or `/customer/register`, then `/customer-portal`
+to view appointments across businesses. The portal displays appointment status,
+payment balance, refund status, and provides customer-owned Stripe Checkout and
+cancellation actions. Customer portal APIs are:
+
+```text
+GET  /api/customer/appointments
+POST /api/customer/appointments/{id}/payment/checkout
+POST /api/customer/appointments/{id}/payment/confirm?sessionId=...
+POST /api/customer/appointments/{id}/cancel
+```
+
+When the booking is created, the appointment service finds or creates the
+tenant-local customer record and stores the authenticated customer account ID
+in `customer.customer_account_id`. A submitted email cannot be used to book as
+another account.
+
 After a booking request is submitted, the confirmation page provides a
-tenant-scoped, expiring management link. The customer can use that link to view
-the request, reschedule it to another available slot, or cancel it. Online
-changes are limited to pending or confirmed appointments and close two hours
-before the appointment. The link is an unguessable capability token; only its
-hash is stored by the service.
+tenant-scoped, expiring management link. Viewing, rescheduling, or cancelling
+through that link also requires the authenticated customer account to own the
+tenant customer record. Online changes are limited to pending or confirmed
+appointments and close two hours before the appointment. The link is an
+unguessable capability token; only its hash is stored by the service.
 
 A customer can then:
 
@@ -388,8 +456,9 @@ A customer can then:
 2. Choose a staff member.
 3. Choose a date.
 4. Choose an available time slot generated by the server.
-5. Enter name, email, phone, and optional notes.
-6. Submit the booking request.
+5. Sign in with a customer account.
+6. Enter name, phone, and optional notes. The authenticated email is used.
+7. Submit the booking request.
 
 The new appointment is created with **PENDING** status. The business confirms
 or manages it from the authenticated Appointments page. The public page does
@@ -477,16 +546,21 @@ The local project already uses the ignored `.env` file in this directory.
 Keep it private and set the database, JWT, Stripe, and notification values
 required for your environment. Never commit it.
 
-For the normal local stack, using local PostgreSQL, Kafka, and Redis:
+For the normal local stack, using local PostgreSQL, Kafka, and Redis, explicitly
+override any database values from a developer `.env` file:
 
 ```powershell
+$env:AUTH_DATABASE_URL = 'jdbc:postgresql://auth-service-db:5432/auth-service-db'
+$env:APPOINTMENT_DATABASE_URL = 'jdbc:postgresql://appointment-service-db:5432/appointment-service-db'
+$env:DATABASE_USERNAME = 'admin_user'
+$env:DATABASE_PASSWORD = 'password'
 docker compose up --build
 ```
 
 Open `http://localhost:5173` when the containers are running. The local seed
-login is `testuser@test.com` / `password123`.
+business login is `testuser@test.com` / `password123`.
 
-Local testing credentials:
+Local business testing credentials:
 
 ```text
 Email: testuser@test.com
@@ -495,6 +569,22 @@ Password: password123
 
 These credentials are for local development only. Do not use them in a
 production or shared Neon environment.
+
+There is no legacy guest customer seed. Normal customers should create an
+account at `/customer/register`, then use `/customer/login` to book and manage
+appointments through `/customer-portal`.
+
+The shared demonstration environment includes one intentionally non-production
+demo workspace and customer account:
+
+```text
+Business: demo.owner@example.com / password123
+Customer: demo.customer@example.com / password123
+Workspace tenant: demo-tenant
+```
+
+These accounts exist only to demonstrate the application flow. Change or
+remove them before using a production environment with real customers.
 
 To create a new salon, spa, or studio workspace, open
 `http://localhost:5173/register`. Enter the business name, owner email, and a
@@ -661,13 +751,38 @@ Current migrations include:
 - Appointment table compatibility schema
 - User tenant column and index
 - Appointment tenant column, default-tenant backfill, and index
+- Customer accounts with the `CUSTOMER` role and registration/login sessions
+- Customer-to-tenant customer linkage
+- Booking holds, payment deadlines, and configurable payment policies
+- Appointment refund tracking and payment refund state
 
-Local-only test data is isolated under:
+Local-only business catalog data and test credentials are isolated under:
 
 `auth-service/src/main/resources/db/migration-local`
 
+The legacy guest customer and bulk fixture data are removed by
+`appointment-service/src/main/resources/db/migration-local/V24__remove_legacy_guest_seed.sql`;
+and
+`appointment-service/src/main/resources/db/migration-local/V25__remove_legacy_bulk_seed_data.sql`.
+The small canonical catalog seed remains because it provides a usable catalog
+for development and integration tests. Customer accounts are always created
+through customer registration.
+
+Production applies the regular demo seed migration
+`appointment-service/src/main/resources/db/migration/V26__remove_legacy_seed_data.sql`.
+Production does not load `db/migration-local`, so development-only catalog
+seeds are never inserted into production. The shared demonstration workspace
+and accounts are created by `V18__seed_demo_accounts.sql` and
+`V27__seed_demo_workspace_catalog.sql`.
+
 Production uses only the shared schema migrations. Hibernate runs with
 `validate`; it does not mutate production schemas.
+
+The local Docker services apply pending migrations automatically during startup.
+The current customer-account migration is Auth `V16`; the customer booking and
+payment lifecycle migrations are Appointment `V22` and `V23`. The appointment service also
+contains local-only seed migrations, so new shared migrations must use a version
+that does not collide with either migration location.
 
 ## Messaging and service communication
 
@@ -786,6 +901,20 @@ The repository includes:
 - GitHub Actions CI
 - Trivy filesystem security scanning
 
+Run the integration tests against the local Docker services with:
+
+```powershell
+cd java-spring-microservices/integration-tests
+docker run --rm --add-host host.docker.internal:host-gateway `
+  -e TEST_BASE_URL=http://host.docker.internal:4004 `
+  -v "${PWD}:/app" -w /app maven:3.9-eclipse-temurin-21 mvn test
+```
+
+The suite covers business and customer authentication, public catalog access,
+authenticated booking authorization, customer-portal protection, payment
+authorization, and reporting flows. Customer authentication tests generate a
+unique temporary email for each run; no shared customer password is documented.
+
 The CI workflow is at:
 
 `.github/workflows/ci.yml`
@@ -839,6 +968,13 @@ configured provider webhook adapters. Set `NOTIFICATION_EMAIL_PROVIDER` and
 `NOTIFICATION_EMAIL_WEBHOOK_URL` (and the equivalent SMS variables) in `.env`
 when connecting a provider. Customer name and email are resolved from the
 tenant-scoped customer record before notification events are published.
+
+For direct email delivery, Resend is supported with
+`NOTIFICATION_EMAIL_PROVIDER=resend`, `NOTIFICATION_EMAIL_API_KEY`, and
+`NOTIFICATION_EMAIL_FROM`. Create a Resend API key and verify the sending
+domain or address in the Resend dashboard; do not store the key in source
+control. SMS and calendar remain disabled with provider `none` unless a
+webhook adapter is configured.
 
 ### Reports and exports
 

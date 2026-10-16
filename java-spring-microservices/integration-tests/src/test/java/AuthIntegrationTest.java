@@ -2,7 +2,6 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.notNullValue;
 
 import io.restassured.RestAssured;
-import io.restassured.response.Response;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -16,25 +15,20 @@ public class AuthIntegrationTest {
 
   @Test
   public void shouldReturnOKWithValidToken() {
-    String loginPayload = """
-          {
-            "email": "testuser@test.com",
-            "password": "password123"
-          }
-        """;
-
-    Response response = given()
+    given()
         .contentType("application/json")
-        .body(loginPayload)
+        .body("""
+            {
+              "email": "demo.owner@example.com",
+              "password": "password123"
+            }
+            """)
         .when()
         .post("/auth/login")
         .then()
         .statusCode(200)
-        .body("token", notNullValue())
-        .extract()
-        .response();
-
-    System.out.println("Generated Token: " + response.jsonPath().getString("token"));
+        .body("accessToken", notNullValue())
+        .body("tenantId", notNullValue());
   }
 
   @Test
@@ -62,5 +56,69 @@ public class AuthIntegrationTest {
         .get("/api/appointments")
         .then()
         .statusCode(401);
+  }
+
+  @Test
+  public void shouldRefreshAndRevokeBusinessSession() {
+    String refreshToken = IntegrationTestSupport.login()
+        .jsonPath().getString("refreshToken");
+
+    String replacementRefreshToken = given()
+        .contentType("application/json")
+        .body("{\"refreshToken\":\"" + refreshToken + "\"}")
+        .when()
+        .post("/auth/refresh")
+        .then()
+        .statusCode(200)
+        .body("accessToken", notNullValue())
+        .body("refreshToken", notNullValue())
+        .extract()
+        .jsonPath()
+        .getString("refreshToken");
+
+    given()
+        .contentType("application/json")
+        .body("{\"refreshToken\":\"" + replacementRefreshToken + "\"}")
+        .when()
+        .post("/auth/logout")
+        .then()
+        .statusCode(204);
+
+    given()
+        .contentType("application/json")
+        .body("{\"refreshToken\":\"" + replacementRefreshToken + "\"}")
+        .when()
+        .post("/auth/refresh")
+        .then()
+        .statusCode(401);
+  }
+
+  @Test
+  public void shouldRejectMalformedBusinessCredentials() {
+    given()
+        .contentType("application/json")
+        .body("""
+            {
+              "email": "not-an-email",
+              "password": "short"
+            }
+            """)
+        .when()
+        .post("/auth/login")
+        .then()
+        .statusCode(401);
+  }
+
+  @Test
+  public void shouldPreventCustomerTokenFromBusinessWorkspaceEndpoint() {
+    String customerToken = IntegrationTestSupport.customerLogin()
+        .jsonPath().getString("accessToken");
+
+    given()
+        .auth().oauth2(customerToken)
+        .when()
+        .get("/api/appointments")
+        .then()
+        .statusCode(403);
   }
 }

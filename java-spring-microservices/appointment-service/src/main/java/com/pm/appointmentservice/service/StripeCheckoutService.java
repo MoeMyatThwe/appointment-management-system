@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.RequestOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,13 +81,15 @@ public class StripeCheckoutService {
     if (appointmentId == null) return;
     payments.findByAppointmentId(UUID.fromString(appointmentId)).ifPresent(payment -> {
       if (!Objects.equals(payment.getTenantId(), tenantId)) return;
+      if (session.getPaymentIntent() != null
+          && session.getPaymentIntent().equals(payment.getStripePaymentIntentId())
+          && payment.getAmountPaid().signum() > 0) return;
       payment.setStripeCheckoutSessionId(session.getId());
       if (session.getPaymentIntent() != null) {
         payment.setStripePaymentIntentId(session.getPaymentIntent());
       }
       if ("paid".equalsIgnoreCase(session.getPaymentStatus())) {
-        payment.setStatus("PAID");
-        payment.setAmountPaid(payment.getAmountDue());
+        applyPaidAmount(payment, session.getAmountTotal());
       }
       payment.setUpdatedAt(java.time.OffsetDateTime.now().toString());
       payments.save(payment);
@@ -100,10 +103,15 @@ public class StripeCheckoutService {
     if (paymentId == null || tenantId == null) return;
     payments.findById(UUID.fromString(paymentId)).ifPresent(payment -> {
       if (!Objects.equals(payment.getTenantId(), tenantId)) return;
+      if (intent.getId().equals(payment.getStripePaymentIntentId())
+          && payment.getAmountPaid().signum() > 0) return;
       payment.setStripePaymentIntentId(intent.getId());
-      if ("PAID".equals(payment.getStatus()) || "REFUNDED".equals(payment.getStatus())) return;
-      payment.setStatus(status);
-      if ("PAID".equals(status)) payment.setAmountPaid(payment.getAmountDue());
+      if ("REFUNDED".equals(payment.getStatus())) return;
+      if ("PAID".equals(status)) {
+        applyPaidAmount(payment, intent.getAmountReceived());
+      } else {
+        payment.setStatus(status);
+      }
       payment.setUpdatedAt(java.time.OffsetDateTime.now().toString());
       payments.save(payment);
     });
@@ -118,7 +126,10 @@ public class StripeCheckoutService {
     if ("REFUNDED".equals(payment.getStatus())) {
       throw new IllegalArgumentException("A refunded payment cannot be checked out");
     }
-    BigDecimal balance = payment.getAmountDue().subtract(payment.getAmountPaid()).max(BigDecimal.ZERO);
+    BigDecimal balance = payment.getAmountPaid().signum() == 0
+        && payment.getAmountRequired().signum() > 0
+        ? payment.getAmountRequired()
+        : payment.getAmountDue().subtract(payment.getAmountPaid()).max(BigDecimal.ZERO);
     if (balance.signum() <= 0) throw new IllegalArgumentException("This appointment has no balance due");
     String form = form(
         "mode", "payment",
@@ -126,11 +137,14 @@ public class StripeCheckoutService {
         "line_items[0][price_data][product_data][name]", "Appointment " + appointmentId,
         "line_items[0][price_data][unit_amount]", Long.toString(balance.movePointRight(2).longValueExact()),
         "line_items[0][quantity]", "1",
-        "success_url", successUrl + "?appointmentId=" + appointmentId,
+        "success_url", successUrl + "?appointmentId=" + appointmentId + "&session_id={CHECKOUT_SESSION_ID}",
         "cancel_url", cancelUrl + "?appointmentId=" + appointmentId,
         "metadata[appointmentId]", appointmentId.toString(),
         "metadata[paymentId]", payment.getId().toString(),
-        "metadata[tenantId]", tenant);
+        "metadata[tenantId]", tenant,
+        "metadata[paymentAmount]", Long.toString(balance.movePointRight(2).longValueExact()),
+        "payment_intent_data[metadata][paymentId]", payment.getId().toString(),
+        "payment_intent_data[metadata][tenantId]", tenant);
     try {
       HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.stripe.com/v1/checkout/sessions"))
           .timeout(Duration.ofSeconds(15)).header("Authorization", "Bearer " + secretKey)
@@ -146,6 +160,7 @@ public class StripeCheckoutService {
       if (intentMatcher.find() && intentMatcher.group(1) != null) {
         payment.setStripePaymentIntentId(intentMatcher.group(1));
       }
+
       payment.setUpdatedAt(java.time.OffsetDateTime.now().toString());
       payments.save(payment);
       return new CheckoutSessionDTO(matcher.group(1).replace("\\/", "/"));
@@ -154,6 +169,78 @@ public class StripeCheckoutService {
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Stripe checkout request was interrupted", exception);
+    }
+  }
+
+  public void refundPayment(String paymentIntentId, BigDecimal amount, String currency) {
+    if (secretKey.isBlank()) {
+      throw new IllegalStateException("Stripe payments are not configured");
+    }
+    String form = form(
+        "payment_intent", paymentIntentId,
+        "amount", Long.toString(amount.movePointRight(2).longValueExact()),
+        "metadata[reason]", "appointment_refund");
+    try {
+      HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.stripe.com/v1/refunds"))
+          .timeout(Duration.ofSeconds(15)).header("Authorization", "Bearer " + secretKey)
+          .header("Idempotency-Key", "appointment-refund-" + paymentIntentId + "-"
+              + amount.movePointRight(2).longValueExact())
+          .header("Content-Type", "application/x-www-form-urlencoded")
+          .POST(HttpRequest.BodyPublishers.ofString(form)).build();
+      HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+      if (response.statusCode() >= 300) {
+        throw new IllegalStateException("Stripe refund request failed");
+      }
+    } catch (IOException exception) {
+      throw new IllegalStateException("Unable to contact Stripe for refund", exception);
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Stripe refund request was interrupted", exception);
+    }
+  }
+
+  private void applyPaidAmount(AppointmentPayment payment, Long receivedCents) {
+    BigDecimal received = receivedCents == null
+        ? payment.getAmountRequired()
+        : BigDecimal.valueOf(receivedCents).movePointLeft(2);
+    BigDecimal paid = payment.getAmountPaid().add(received).min(payment.getAmountDue());
+    payment.setAmountPaid(paid);
+    payment.setStatus(paid.compareTo(payment.getAmountDue()) >= 0 ? "PAID" : "PARTIALLY_PAID");
+    payment.setPaymentMethod("STRIPE");
+  }
+
+  @Transactional
+  public void confirm(UUID appointmentId, String tenant, String sessionId) {
+    if (secretKey.isBlank()) throw new IllegalStateException("Stripe payments are not configured");
+    Appointment appointment = appointments.findByIdAndTenantId(appointmentId, tenant)
+        .orElseThrow(() -> new IllegalArgumentException("Appointment not found"));
+    AppointmentPayment payment = payments.findByAppointmentIdAndTenantId(appointmentId, tenant)
+        .orElseThrow(() -> new IllegalArgumentException("Payment not found"));
+    if (sessionId == null || sessionId.isBlank()) sessionId = payment.getStripeCheckoutSessionId();
+    if (sessionId == null || sessionId.isBlank()) {
+      throw new IllegalArgumentException("Stripe checkout session not found");
+    }
+    try {
+      Session session = Session.retrieve(sessionId,
+          RequestOptions.builder().setApiKey(secretKey).build());
+      String metadataAppointmentId = session.getMetadata() == null ? null : session.getMetadata().get("appointmentId");
+      String metadataTenantId = session.getMetadata() == null ? null : session.getMetadata().get("tenantId");
+      if (!appointmentId.toString().equals(metadataAppointmentId)
+          || !tenant.equals(metadataTenantId)
+          || !appointmentId.equals(appointment.getId())) {
+        throw new IllegalArgumentException("Stripe session does not belong to this appointment");
+      }
+      if ("paid".equalsIgnoreCase(session.getPaymentStatus())) {
+        applyPaidAmount(payment, session.getAmountTotal());
+      } else {
+        payment.setStatus("PENDING");
+      }
+      payment.setStripeCheckoutSessionId(session.getId());
+      if (session.getPaymentIntent() != null) payment.setStripePaymentIntentId(session.getPaymentIntent());
+      payment.setUpdatedAt(java.time.OffsetDateTime.now().toString());
+      payments.save(payment);
+    } catch (com.stripe.exception.StripeException exception) {
+      throw new IllegalStateException("Unable to verify Stripe payment", exception);
     }
   }
 

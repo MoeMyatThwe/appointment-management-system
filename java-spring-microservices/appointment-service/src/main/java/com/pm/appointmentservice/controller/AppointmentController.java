@@ -35,6 +35,7 @@ import com.pm.appointmentservice.security.AccessPolicy;
 import com.pm.appointmentservice.dto.DashboardSummaryDTO;
 import com.pm.appointmentservice.dto.ReportSummaryDTO;
 import com.pm.appointmentservice.service.ReportingService;
+import com.pm.appointmentservice.service.PaymentService;
 
 @RestController
 @RequestMapping("/appointments")
@@ -44,10 +45,13 @@ public class AppointmentController {
   private static final Logger auditLog = LoggerFactory.getLogger("AUDIT");
   private final AppointmentService appointmentService;
   private final ReportingService reportingService;
+  private final PaymentService paymentService;
 
-  public AppointmentController(AppointmentService appointmentService, ReportingService reportingService) {
+  public AppointmentController(AppointmentService appointmentService, ReportingService reportingService,
+      PaymentService paymentService) {
     this.appointmentService = appointmentService;
     this.reportingService = reportingService;
+    this.paymentService = paymentService;
   }
 
   @GetMapping("/dashboard/summary")
@@ -215,6 +219,9 @@ public class AppointmentController {
     requireWriteRole(role);
     auditLog.info("event=APPOINTMENT_STATUS_CHANGE tenantId={} user={} appointmentId={} status={}",
         tenantId, email, id, statusChange.status());
+    if ("CANCELLED".equalsIgnoreCase(statusChange.status())) {
+      paymentService.refundForCancellation(id, tenantId);
+    }
     return ResponseEntity.ok(appointmentService.changeStatus(id, statusChange, tenantId, email));
   }
 
@@ -227,6 +234,7 @@ public class AppointmentController {
     requireWriteRole(role);
     auditLog.info("event=APPOINTMENT_CANCEL tenantId={} user={} appointmentId={}",
         tenantId, email, id);
+    paymentService.refundForCancellation(id, tenantId);
     return ResponseEntity.ok(appointmentService.changeStatus(id,
         new AppointmentStatusChangeDTO("CANCELLED", null), tenantId, email));
   }

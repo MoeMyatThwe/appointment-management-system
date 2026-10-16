@@ -5,15 +5,65 @@ studios, clinics, and other service businesses.
 
 ## How the product works
 
-The system has two types of users:
+The system has three identity types:
 
 | User | Purpose |
 | --- | --- |
 | SaaS platform owner | Operates the platform, manages tenant accounts, subscription plans, platform settings, feature flags, support access, and audit records. |
 | Business owner | Uses a private business workspace to manage staff, services, customers, schedules, appointments, payments, booking, and reports. |
+| Customer | Books with one or more businesses, manages their appointments, and pays or receives refunds for their own bookings. |
 
 Every business owner creates or uses an isolated tenant workspace. Data from
 one business is not intended to be visible to another business.
+
+### Identity and role boundaries
+
+| Role | Scope | Intended access |
+| --- | --- | --- |
+| `PLATFORM_ADMIN` | Platform-wide administration | Tenant lifecycle, plans, feature flags, support, and platform audit |
+| `TENANT_ADMIN` / `ADMIN` | One business workspace | Workspace configuration and business operations |
+| `MANAGER` / `STAFF` | One business workspace | Operational business tasks allowed by role |
+| `CUSTOMER` | Customer-owned account across businesses | Own profile, bookings, appointment payments, cancellations, and refunds |
+
+Customer accounts are intentionally separate from business-owner accounts. A
+customer may book with multiple spas or other businesses, so a customer account
+must not own a tenant workspace or inherit tenant-admin permissions. The
+`CUSTOMER` role is used by the customer authentication and booking flow.
+Booking creation and booking management require a customer token. Customer
+payment access is limited to appointments owned by that account.
+
+Customer authentication endpoints are available through the API gateway:
+
+```text
+POST /auth/customer/register   { "email": "...", "password": "..." }
+POST /auth/customer/login      { "email": "...", "password": "..." }
+POST /auth/refresh             { "refreshToken": "..." }
+
+GET  /api/customer/appointments
+POST /api/customer/appointments/{id}/payment/checkout
+POST /api/customer/appointments/{id}/payment/confirm?sessionId=...
+POST /api/customer/appointments/{id}/cancel
+```
+
+Registration and login return customer-scoped tokens with an empty
+`tenantId`; customers do not create or own a business workspace. Use a unique
+test email for local verification rather than documenting a real password.
+
+The dev and production demonstration environment includes:
+
+```text
+Business: demo.owner@example.com / password123
+Customer: demo.customer@example.com / password123
+Tenant:   demo-tenant
+```
+
+These are demonstration credentials only and must be changed or removed before
+hosting real customer data.
+
+The booking catalog and availability remain public, but creating, viewing,
+rescheduling, or cancelling an appointment requires the customer token. The
+customer account is linked to a tenant-local customer record through the
+authenticated account ID.
 
 ## SaaS platform-owner workflow
 
@@ -137,6 +187,9 @@ tenant, and the services use tenant identifiers to scope business data.
 | --- | --- |
 | `/login` | Sign in |
 | `/register` | Create a business workspace |
+| `/customer/register` | Create a customer account |
+| `/customer/login` | Sign in as a customer |
+| `/customer-portal` | View customer appointments, payments, and refunds |
 | `/onboarding` | Complete workspace setup |
 | `/dashboard` | Business overview |
 | `/appointments` | Manage appointments |
@@ -165,6 +218,13 @@ Open PowerShell and run:
 cd "C:\Users\<your-user>\Desktop\Appointment-Management-System\java-spring-microservices"
 docker compose up --build
 ```
+
+Database schemas are managed by Flyway. The customer-account migration is
+`auth-service/src/main/resources/db/migration/V16__create_customer_accounts.sql`;
+the customer booking and payment lifecycle migration is
+`appointment-service/src/main/resources/db/migration/V22__add_customer_booking_payment_lifecycle.sql`;
+payment requirement fields are added by
+`appointment-service/src/main/resources/db/migration/V23__add_payment_requirement_fields.sql`.
 
 Open the frontend at:
 

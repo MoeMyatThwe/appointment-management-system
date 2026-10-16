@@ -13,6 +13,7 @@ import com.pm.appointmentservice.mapper.AppointmentMapper;
 import com.pm.appointmentservice.model.Appointment;
 import com.pm.appointmentservice.model.AppointmentStatusHistory;
 import com.pm.appointmentservice.repository.AppointmentRepository;
+import com.pm.appointmentservice.repository.AppointmentPaymentRepository;
 import com.pm.appointmentservice.repository.AppointmentStatusHistoryRepository;
 import com.pm.appointmentservice.repository.CustomerRepository;
 import com.pm.appointmentservice.repository.StaffRepository;
@@ -44,6 +45,7 @@ public class AppointmentService {
       "NO_SHOW", Set.of());
 
   private final AppointmentRepository appointmentRepository;
+  private final AppointmentPaymentRepository paymentRepository;
   private final BillingServiceGrpcClient billingServiceGrpcClient;
   private final KafkaProducer kafkaProducer;
   private final ScheduleService scheduleService;
@@ -57,6 +59,7 @@ public class AppointmentService {
   private int bookingBufferMinutes;
 
   public AppointmentService(AppointmentRepository appointmentRepository,
+      AppointmentPaymentRepository paymentRepository,
       BillingServiceGrpcClient billingServiceGrpcClient,
       KafkaProducer kafkaProducer,
       ScheduleService scheduleService,
@@ -67,6 +70,7 @@ public class AppointmentService {
       BookableResourceRepository resourceRepository,
       EntityManager entityManager) {
     this.appointmentRepository = appointmentRepository;
+    this.paymentRepository = paymentRepository;
     this.billingServiceGrpcClient = billingServiceGrpcClient;
     this.kafkaProducer = kafkaProducer;
     this.scheduleService = scheduleService;
@@ -119,7 +123,12 @@ public class AppointmentService {
   public List<AppointmentResponseDTO> getAppointments(String tenantId) {
     List<Appointment> appointments = appointmentRepository.findAllByTenantId(tenantId);
 
-    return appointments.stream().map(AppointmentMapper::toDTO).toList();
+    Map<UUID, String> paymentStatuses = paymentRepository.findAllByTenantId(tenantId).stream()
+        .collect(java.util.stream.Collectors.toMap(
+            payment -> payment.getAppointmentId(), payment -> payment.getStatus(),
+            (first, second) -> second));
+    return appointments.stream().map(appointment -> withPaymentStatus(appointment,
+        paymentStatuses.getOrDefault(appointment.getId(), "UNPAID"))).toList();
   }
 
   @Transactional
@@ -133,7 +142,19 @@ public class AppointmentService {
       String serviceId, String resourceId, Pageable pageable) {
     return appointmentRepository.search(tenantId, normalize(search), normalize(fromTime),
         normalize(toTime), normalize(status), normalize(paymentStatus), normalize(staffId), normalize(customerId),
-        normalize(serviceId), normalize(resourceId), pageable).map(AppointmentMapper::toDTO);
+        normalize(serviceId), normalize(resourceId), pageable)
+        .map(appointment -> withPaymentStatus(appointment, paymentStatus(appointment)));
+  }
+
+  private AppointmentResponseDTO withPaymentStatus(Appointment appointment, String status) {
+    AppointmentResponseDTO result = AppointmentMapper.toDTO(appointment);
+    result.setPaymentStatus(status == null ? "UNPAID" : status);
+    return result;
+  }
+
+  private String paymentStatus(Appointment appointment) {
+    return paymentRepository.findByAppointmentIdAndTenantId(appointment.getId(), appointment.getTenantId())
+        .map(payment -> payment.getStatus()).orElse("UNPAID");
   }
 
   private String normalize(String value) {
@@ -146,6 +167,7 @@ public class AppointmentService {
     if (!"PENDING".equalsIgnoreCase(appointmentRequestDTO.getStatus())) {
       throw new InvalidAppointmentStatusException("New appointments must start with PENDING status");
     }
+    appointmentRequestDTO.setStatus(normalizeStatus(appointmentRequestDTO.getStatus()));
     lockTenantBookings(tenantId);
     validateReferences(appointmentRequestDTO, tenantId);
     appointmentRequestDTO.setBusinessId(tenantId);
@@ -205,8 +227,8 @@ public class AppointmentService {
     appointment.setEndTime(appointmentRequestDTO.getEndTime());
     if (appointmentRequestDTO.getStatus() != null
         && !appointmentRequestDTO.getStatus().isBlank()) {
-      String previousStatus = appointment.getStatus();
-      String nextStatus = appointmentRequestDTO.getStatus().trim().toUpperCase();
+      String previousStatus = normalizeStatus(appointment.getStatus());
+      String nextStatus = normalizeStatus(appointmentRequestDTO.getStatus());
       validateStatusTransition(previousStatus, nextStatus);
       appointment.setStatus(nextStatus);
       if (!previousStatus.equals(nextStatus)) {
@@ -286,9 +308,9 @@ public class AppointmentService {
       String tenantId, String actor) {
     Appointment appointment = appointmentRepository.findByIdAndTenantId(id, tenantId).orElseThrow(
         () -> new AppointmentNotFoundException("Appointment not found with ID: " + id));
-    String nextStatus = statusChange.status().trim().toUpperCase();
-    validateStatusTransition(appointment.getStatus(), nextStatus);
-    String previousStatus = appointment.getStatus();
+    String nextStatus = normalizeStatus(statusChange.status());
+    String previousStatus = normalizeStatus(appointment.getStatus());
+    validateStatusTransition(previousStatus, nextStatus);
     appointment.setStatus(nextStatus);
     appointment.setUpdatedAt(OffsetDateTime.now().toString());
     Appointment updated = appointmentRepository.save(appointment);
@@ -315,6 +337,8 @@ public class AppointmentService {
   }
 
   private void validateStatusTransition(String currentStatus, String nextStatus) {
+    currentStatus = normalizeStatus(currentStatus);
+    nextStatus = normalizeStatus(nextStatus);
     if (currentStatus.equals(nextStatus)) {
       return;
     }
@@ -323,5 +347,12 @@ public class AppointmentService {
       throw new InvalidAppointmentStatusException(
           "Cannot change appointment status from " + currentStatus + " to " + nextStatus);
     }
+  }
+
+  private String normalizeStatus(String status) {
+    if (status == null || status.isBlank()) {
+      throw new InvalidAppointmentStatusException("Appointment status is required");
+    }
+    return status.trim().toUpperCase();
   }
 }

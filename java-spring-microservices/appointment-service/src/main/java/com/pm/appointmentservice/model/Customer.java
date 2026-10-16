@@ -10,6 +10,7 @@ public class Customer {
   @Column(nullable = false) private String tenantId;
   @Column(nullable = false) private String name;
   @Column(nullable = false) private String email;
+  private UUID customerAccountId;
   private String phone;
   private String notes;
   private String customerGroup;
@@ -21,6 +22,8 @@ public class Customer {
   public void setName(String v) { name = v; }
   public String getEmail() { return email; }
   public void setEmail(String v) { email = v; }
+  public UUID getCustomerAccountId() { return customerAccountId; }
+  public void setCustomerAccountId(UUID v) { customerAccountId = v; }
   public String getPhone() { return phone; }
   public void setPhone(String v) { phone = v; }
   public String getNotes() { return notes; }

@@ -130,6 +130,9 @@ export function LandingPage() {
               <Link className="schedora-button" to="/register">Start your workspace <FiArrowRight /></Link>
               <Link className="schedora-outline-button" to="/login">Sign in</Link>
             </div>
+            <p className="schedora-hero-note">
+              Looking to book an appointment? <Link to="/customer/register">Create a customer account</Link> or <Link to="/customer/login">sign in</Link>.
+            </p>
             <p className="schedora-hero-note">Set up your business in minutes. Keep your team and customers in sync.</p>
           </div>
           <ProductVisual label="Schedora dashboard preview" src={dashboardImage} className="schedora-hero-image" />

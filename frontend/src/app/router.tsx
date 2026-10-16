@@ -21,6 +21,7 @@ const LazySchedulePage = lazy(() => import('../features/schedule/pages/ScheduleP
 const LazyServicesPage = lazy(() => import('../features/services/pages/ServicesPage').then((module) => ({ default: module.ServicesPage })))
 const LazyStaffPage = lazy(() => import('../features/staff/pages/StaffPage').then((module) => ({ default: module.StaffPage })))
 const LazySupportAccessPage = lazy(() => import('../features/platform/pages/SupportAccessConsentPage').then((module) => ({ default: module.SupportAccessConsentPage })))
+const LazyCustomerPortalPage = lazy(() => import('../features/customers/pages/CustomerPortalPage').then((module) => ({ default: module.CustomerPortalPage })))
 
 function DashboardPage() {
   const user = useAuthStore((state) => state.user)
@@ -116,7 +117,7 @@ function ProtectedRoute() {
     return <Navigate to="/platform" replace />
   }
   if (user?.role === 'CUSTOMER') {
-    return user.tenantId ? <Navigate to={`/book/${user.tenantId}`} replace /> : <Navigate to="/login" replace />
+    return <Navigate to="/customer-portal" replace />
   }
   if (user && !user.onboardingCompleted) {
     return <Navigate to="/onboarding" replace />
@@ -151,11 +152,16 @@ function OnboardingRoute() {
 
 export const router = createBrowserRouter([
   { path: '/login', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/auth/pages/LoginPage')).LoginPage }) },
+  { path: '/customer/login', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/auth/pages/LoginPage')).LoginPage }) },
+  { path: '/customer/register', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/auth/pages/CustomerRegisterPage')).CustomerRegisterPage }) },
   { path: '/register', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/auth/pages/RegisterPage')).RegisterPage }) },
   { path: '/recovery', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/auth/pages/RecoveryPage')).RecoveryPage }) },
+  { path: '/payment/success', lazy: async () => ({ Component: (await import('../features/appointments/pages/PaymentResultPage')).PaymentResultPage }) },
+  { path: '/payment/cancelled', lazy: async () => ({ Component: (await import('../features/appointments/pages/PaymentResultPage')).PaymentCancelledPage }) },
   { path: '/book/:tenantId', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/booking/pages/PublicBookingPage')).PublicBookingPage }) },
   { path: '/book/:tenantId/manage/:token', errorElement: <RouteErrorPage />, lazy: async () => ({ Component: (await import('../features/booking/pages/PublicBookingManagePage')).PublicBookingManagePage }) },
   { path: '/onboarding', element: <OnboardingRoute /> },
+  { path: '/customer-portal', element: <RoleRoute roles={['CUSTOMER']}><LazyCustomerPortalPage /></RoleRoute> },
   { path: '/platform/support', element: <PlatformSupportRoute /> },
   { path: '/platform/settings', element: <PlatformSettingsRoute /> },
   { path: '/platform/audit-log', element: <PlatformAuditLogRoute /> },

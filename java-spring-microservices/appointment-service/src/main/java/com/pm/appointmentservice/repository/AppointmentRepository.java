@@ -33,12 +33,69 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
       @Param("fromTime") String fromTime, @Param("toTime") String toTime);
   Page<Appointment> findAllByTenantIdAndCustomerIdOrderByStartTimeDesc(
       String tenantId, String customerId, Pageable pageable);
+
+  @Query("""
+      select a from Appointment a, Customer c
+      where a.customerId = str(c.id)
+        and c.customerAccountId = :accountId
+      order by a.startTime desc
+      """)
+  Page<Appointment> findAllByCustomerAccountId(@Param("accountId") UUID accountId, Pageable pageable);
+
+  @Query("""
+      select a from Appointment a, Customer c
+      where c.customerAccountId = :accountId
+        and a.customerId = str(c.id)
+        and (:search = '' or lower(coalesce(a.notes, '')) like lower(concat('%', :search, '%'))
+          or str(a.id) like concat('%', :search, '%')
+          or exists (select s.id from ServiceOffering s
+            where s.tenantId = a.tenantId and str(s.id) = a.serviceId
+              and lower(s.name) like lower(concat('%', :search, '%'))))
+        and (:status = '' or a.status = :status)
+        and (:paymentStatus = '' or coalesce(
+          (select p.status from AppointmentPayment p
+            where p.appointmentId = a.id and p.tenantId = a.tenantId),
+          'UNPAID') = :paymentStatus)
+        and (:dateFilter = 'ALL'
+          or (:dateFilter = 'UPCOMING' and a.startTime >= :now)
+          or (:dateFilter = 'PAST' and a.startTime < :now))
+      order by a.startTime desc
+      """)
+  Page<Appointment> searchCustomer(
+      @Param("accountId") UUID accountId,
+      @Param("search") String search,
+      @Param("status") String status,
+      @Param("paymentStatus") String paymentStatus,
+      @Param("dateFilter") String dateFilter,
+      @Param("now") String now,
+      Pageable pageable);
+
+  @Query("""
+      select a from Appointment a, Customer c
+      where a.id = :appointmentId
+        and a.tenantId = c.tenantId
+        and a.customerId = str(c.id)
+        and c.customerAccountId = :accountId
+      """)
+  Optional<Appointment> findByIdAndCustomerAccountId(
+      @Param("appointmentId") UUID appointmentId, @Param("accountId") UUID accountId);
   Page<Appointment> findAllByTenantIdAndStaffIdOrderByStartTimeDesc(
       String tenantId, String staffId, Pageable pageable);
   Optional<Appointment> findByIdAndTenantId(UUID id, String tenantId);
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select a from Appointment a where a.id = :id and a.tenantId = :tenantId")
   Optional<Appointment> findByIdAndTenantIdForUpdate(@Param("id") UUID id, @Param("tenantId") String tenantId);
+
+  @Query("""
+      select a from Appointment a
+      join AppointmentPayment p on p.appointmentId = a.id and p.tenantId = a.tenantId
+      where a.paymentRequired = true
+        and a.paymentDeadline is not null
+        and a.paymentDeadline < :now
+        and a.status in ('PENDING', 'CONFIRMED')
+        and p.amountPaid < p.amountRequired
+      """)
+  List<Appointment> findExpiredPaymentHolds(@Param("now") java.time.OffsetDateTime now);
 
   @Query("""
       select a from Appointment a

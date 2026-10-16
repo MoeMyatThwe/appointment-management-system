@@ -1,23 +1,26 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../authStore'
 import { FiAlertCircle, FiEye, FiEyeOff } from 'react-icons/fi'
 import { FormField } from '../../../shared/components/FormField'
 
 export function LoginPage() {
   const { login, isAuthenticated, isLoading, error } = useAuthStore()
+  const location = useLocation()
+  const customerLogin = location.pathname === '/customer/login'
+  const returnTo = customerLogin ? new URLSearchParams(location.search).get('returnTo') : null
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={customerLogin && returnTo?.startsWith('/') ? returnTo : customerLogin ? '/customer-portal' : '/dashboard'} replace />
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    await login({ email, password })
+    await login({ email, password }, customerLogin)
   }
 
   return (
@@ -30,8 +33,12 @@ export function LoginPage() {
         </div>
         <form className="p-7 sm:p-10" onSubmit={handleSubmit}>
           <p className="text-sm font-semibold text-indigo-600">Welcome back</p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Sign in to your workspace</h2>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{customerLogin ? 'Sign in to your customer account' : 'Sign in to your workspace'}</h2>
           <p className="mt-2 text-sm text-slate-500">Use your account email and password to continue.</p>
+          <div className="mt-4 flex flex-wrap gap-2 rounded-xl bg-slate-100 p-1 text-sm">
+            <Link className={`flex-1 rounded-lg px-3 py-2 text-center font-semibold ${customerLogin ? 'text-slate-500 hover:bg-white' : 'bg-white text-indigo-700 shadow-sm'}`} to="/login">Business/team</Link>
+            <Link className={`flex-1 rounded-lg px-3 py-2 text-center font-semibold ${customerLogin ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-white'}`} to="/customer/login">Customer</Link>
+          </div>
           <div className="mt-7 grid gap-4">
             <FormField label="Email" htmlFor="email">
               <input className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100" autoComplete="email" id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
@@ -44,7 +51,10 @@ export function LoginPage() {
           {isLoading ? 'Signing in...' : 'Sign in'}
         </button>
           </div>
-          <p className="mt-6 text-center text-sm text-slate-500"><Link className="font-semibold text-indigo-600 hover:text-indigo-700" to="/recovery">Forgot password?</Link></p><p className="mt-3 text-center text-sm text-slate-500">New business? <Link className="font-semibold text-indigo-600 hover:text-indigo-700" to="/register">Create a workspace</Link></p>
+          <p className="mt-6 text-center text-sm text-slate-500"><Link className="font-semibold text-indigo-600 hover:text-indigo-700" to="/recovery">Forgot password?</Link></p>
+          {customerLogin
+            ? <p className="mt-3 text-center text-sm text-slate-500">New customer? <Link className="font-semibold text-indigo-600 hover:text-indigo-700" to="/customer/register">Create an account</Link></p>
+            : <p className="mt-3 text-center text-sm text-slate-500">New business? <Link className="font-semibold text-indigo-600 hover:text-indigo-700" to="/register">Create a workspace</Link></p>}
         </form>
       </section>
     </main>

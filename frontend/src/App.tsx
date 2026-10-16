@@ -46,8 +46,8 @@ const emptyForm: AppointmentForm = {
 
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('access_token'))
-  const [email, setEmail] = useState('testuser@test.com')
-  const [password, setPassword] = useState('password123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [form, setForm] = useState<AppointmentForm>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)

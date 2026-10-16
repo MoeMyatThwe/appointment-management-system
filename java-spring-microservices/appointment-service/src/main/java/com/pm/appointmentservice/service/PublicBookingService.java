@@ -2,6 +2,7 @@ package com.pm.appointmentservice.service;
 
 import com.pm.appointmentservice.dto.*;
 import com.pm.appointmentservice.exception.TimeSlotAlreadyBookedException;
+import com.pm.appointmentservice.feature.FeatureFlagClient;
 import com.pm.appointmentservice.mapper.AppointmentMapper;
 import com.pm.appointmentservice.model.Appointment;
 import com.pm.appointmentservice.model.AppointmentIdempotencyKey;
@@ -30,26 +31,32 @@ public class PublicBookingService {
   private final AppointmentRepository appointments;
   private final ScheduleService schedule;
   private final AppointmentService appointmentService;
+  private final PaymentService paymentService;
   private final AppointmentIdempotencyKeyRepository idempotencyKeys;
   @Value("${appointment.booking-buffer-minutes:0}")
   private int bookingBufferMinutes;
   private final RestClient authClient;
   private final String internalServiceKey;
   private final PublicBookingTokenRepository publicTokens;
+  private final FeatureFlagClient flags;
   private final SecureRandom random = new SecureRandom();
 
   public PublicBookingService(CustomerRepository customers, StaffRepository staff,
       ServiceOfferingRepository services, AppointmentRepository appointments,
       ScheduleService schedule, AppointmentService appointmentService,
+      PaymentService paymentService,
       AppointmentIdempotencyKeyRepository idempotencyKeys,
       PublicBookingTokenRepository publicTokens,
+      FeatureFlagClient flags,
       @Value("${auth.service.url:http://localhost:4005}") String authServiceUrl,
       @Value("${internal.service-key:}") String internalServiceKey) {
     this.customers = customers; this.staff = staff; this.services = services;
     this.appointments = appointments; this.schedule = schedule;
     this.appointmentService = appointmentService;
+    this.paymentService = paymentService;
     this.idempotencyKeys = idempotencyKeys;
     this.publicTokens = publicTokens;
+    this.flags = flags;
     this.authClient = RestClient.builder().baseUrl(authServiceUrl).build();
     this.internalServiceKey = internalServiceKey;
   }
@@ -72,6 +79,27 @@ public class PublicBookingService {
             .map(s -> new StaffDTO(s.getId().toString(), s.getName(), s.getEmail(), s.getRole(), s.isActive())).toList());
   }
 
+  public List<PublicBusinessDTO> businesses() {
+    return services.findDistinctTenantIds().stream()
+        .filter(tenant -> flags.enabled(tenant, "ONLINE_BOOKING"))
+        .map(tenant -> {
+          String name = authClient.get()
+              .uri("/internal/tenants/{tenant}/name", tenant)
+              .header("X-Internal-Service-Key", internalServiceKey)
+              .retrieve().body(String.class);
+          String timezone = authClient.get()
+              .uri("/internal/tenants/{tenant}/timezone", tenant)
+              .header("X-Internal-Service-Key", internalServiceKey)
+              .retrieve().body(String.class);
+          return new PublicBusinessDTO(
+              tenant,
+              name == null || name.isBlank() ? "Book an appointment" : name,
+              timezone == null || timezone.isBlank() ? "UTC" : timezone,
+              services.findAllByTenantIdOrderByName(tenant).size());
+        })
+        .toList();
+  }
+
   public List<PublicSlotDTO> slots(String tenant, LocalDate date, UUID serviceId, UUID staffId,
       String timezone) {
     ServiceOffering service = services.findById(serviceId).filter(item -> tenant.equals(item.getTenantId()))
@@ -82,8 +110,8 @@ public class PublicBookingService {
     int duration = service.getDurationMinutes() == null || service.getDurationMinutes() < 1 ? 30 : service.getDurationMinutes();
     BusinessHoursDTO hours = schedule.getHours(tenant).stream()
         .filter(item -> item.dayOfWeek() == date.getDayOfWeek().getValue()).findFirst()
-        .orElseThrow(() -> new IllegalArgumentException("Business hours are not configured"));
-    if (!hours.enabled() || hours.openTime() == null
+        .orElse(null);
+    if (hours == null || !hours.enabled() || hours.openTime() == null
         || schedule.isHoliday(tenant, date)) return List.of();
     List<PublicSlotDTO> result = new ArrayList<>();
     String businessTimezone = timezone;
@@ -114,19 +142,34 @@ public class PublicBookingService {
     return result;
   }
 
+  public List<LocalDate> availableDates(String tenant, LocalDate from, LocalDate to,
+      UUID serviceId, UUID staffId, String timezone) {
+    if (from == null || to == null || to.isBefore(from)) {
+      throw new IllegalArgumentException("Availability range is invalid");
+    }
+    if (from.plusDays(62).isBefore(to)) {
+      throw new IllegalArgumentException("Availability range cannot exceed 63 days");
+    }
+    List<LocalDate> available = new ArrayList<>();
+    for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+      if (!slots(tenant, date, serviceId, staffId, timezone).isEmpty()) {
+        available.add(date);
+      }
+    }
+    return available;
+  }
+
   private boolean overlaps(String existingStart, String existingEnd, String requestedStart,
       String requestedEnd) {
     return existingStart.compareTo(requestedEnd) < 0 && existingEnd.compareTo(requestedStart) > 0;
   }
 
   @Transactional
-  public AppointmentResponseDTO book(String tenant, PublicBookingRequestDTO input) {
-    return book(tenant, input, null);
-  }
-
-  @Transactional
   public AppointmentResponseDTO book(String tenant, PublicBookingRequestDTO input,
-      String idempotencyKey) {
+      String idempotencyKey, UUID customerAccountId, String customerEmail) {
+    if (customerAccountId == null || customerEmail == null || customerEmail.isBlank()) {
+      throw new IllegalArgumentException("Authenticated customer identity is required");
+    }
     String normalizedKey = idempotencyKey == null ? null : idempotencyKey.trim();
     if (normalizedKey != null && normalizedKey.isBlank()) normalizedKey = null;
     if (normalizedKey != null && normalizedKey.length() > 128) {
@@ -147,10 +190,21 @@ public class PublicBookingService {
         || staff.findByIdAndTenantIdAndActiveTrue(staffId, tenant).isEmpty()) {
       throw new IllegalArgumentException("The selected service or staff member is unavailable");
     }
-    Customer customer = customers.findByTenantIdAndEmailIgnoreCase(tenant, input.customerEmail())
-        .orElseGet(Customer::new);
+    Customer customer = customers.findByTenantIdAndCustomerAccountId(tenant, customerAccountId)
+        .orElseGet(() -> customers.findByTenantIdAndEmailIgnoreCase(tenant, customerEmail)
+            .map(existing -> {
+              if (existing.getCustomerAccountId() != null
+                  && !customerAccountId.equals(existing.getCustomerAccountId())) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "This email is already linked to another customer account");
+              }
+              return existing;
+            })
+            .orElseGet(Customer::new));
     customer.setTenantId(tenant); customer.setName(input.customerName().trim());
-    customer.setEmail(input.customerEmail().trim().toLowerCase()); customer.setPhone(input.customerPhone());
+    customer.setEmail(customerEmail.trim().toLowerCase()); customer.setPhone(input.customerPhone());
+    customer.setCustomerAccountId(customerAccountId);
     customer = customers.save(customer);
     AppointmentRequestDTO request = new AppointmentRequestDTO();
     request.setBusinessId(tenant); request.setCalendarId("public-booking");
@@ -163,6 +217,7 @@ public class PublicBookingService {
         .retrieve().body(String.class);
     AppointmentResponseDTO result = appointmentService.createAppointment(request, tenant,
         businessTimezone == null || businessTimezone.isBlank() ? "UTC" : businessTimezone);
+    paymentService.initializeForBooking(UUID.fromString(result.getId()), tenant);
     String managementToken = issueManagementToken(tenant, UUID.fromString(result.getId()));
     result.setPublicManageToken(managementToken);
     if (normalizedKey != null) {
@@ -176,29 +231,38 @@ public class PublicBookingService {
     return result;
   }
 
-  public AppointmentResponseDTO getByManagementToken(String tenant, String token) {
-    return withManagementToken(loadByToken(tenant, token), tenant);
+  public AppointmentResponseDTO getByManagementToken(String tenant, String token,
+      UUID customerAccountId) {
+    Appointment appointment = loadByToken(tenant, token);
+    ensureCustomerOwns(appointment, customerAccountId);
+    return withManagementToken(AppointmentMapper.toDTO(appointment), tenant);
   }
 
   @Transactional
-  public AppointmentResponseDTO cancelByManagementToken(String tenant, String token) {
-    AppointmentResponseDTO appointment = loadByToken(tenant, token);
-    ensurePublicChangeAllowed(appointment, false);
-    return appointmentService.changeStatus(UUID.fromString(appointment.getId()),
+  public AppointmentResponseDTO cancelByManagementToken(String tenant, String token,
+      UUID customerAccountId) {
+    Appointment appointment = loadByToken(tenant, token);
+    ensureCustomerOwns(appointment, customerAccountId);
+    AppointmentResponseDTO response = AppointmentMapper.toDTO(appointment);
+    ensurePublicChangeAllowed(response, false);
+    paymentService.refundForCancellation(appointment.getId(), tenant);
+    return appointmentService.changeStatus(appointment.getId(),
         new AppointmentStatusChangeDTO("CANCELLED", "Cancelled by customer"), tenant, "public-customer");
   }
 
   @Transactional
   public AppointmentResponseDTO rescheduleByManagementToken(String tenant, String token,
-      AppointmentTimeChangeDTO timeChange, String timezone) {
-    AppointmentResponseDTO appointment = loadByToken(tenant, token);
-    ensurePublicChangeAllowed(appointment, true);
+      AppointmentTimeChangeDTO timeChange, String timezone, UUID customerAccountId) {
+    Appointment appointment = loadByToken(tenant, token);
+    ensureCustomerOwns(appointment, customerAccountId);
+    AppointmentResponseDTO response = AppointmentMapper.toDTO(appointment);
+    ensurePublicChangeAllowed(response, true);
     AppointmentResponseDTO updated = appointmentService.rescheduleAppointment(
-        UUID.fromString(appointment.getId()), timeChange, tenant, timezone);
+        appointment.getId(), timeChange, tenant, timezone);
     return withManagementToken(updated, tenant);
   }
 
-  private AppointmentResponseDTO loadByToken(String tenant, String rawToken) {
+  private Appointment loadByToken(String tenant, String rawToken) {
     if (rawToken == null || rawToken.isBlank()) {
       throw new IllegalArgumentException("Booking management token is required");
     }
@@ -207,8 +271,19 @@ public class PublicBookingService {
         .filter(item -> item.getExpiresAt().isAfter(Instant.now()))
         .orElseThrow(() -> new IllegalArgumentException("Booking link is invalid or expired"));
     return appointments.findByIdAndTenantId(token.getAppointmentId(), tenant)
-        .map(AppointmentMapper::toDTO)
+        .map(item -> item)
         .orElseThrow(() -> new IllegalArgumentException("Appointment is no longer available"));
+  }
+
+  private void ensureCustomerOwns(Appointment appointment, UUID customerAccountId) {
+    if (customerAccountId == null || !customerAccountId.equals(
+        customers.findByTenantIdAndCustomerAccountId(appointment.getBusinessId(), customerAccountId)
+            .filter(customer -> customer.getId().toString().equals(appointment.getCustomerId()))
+            .map(Customer::getCustomerAccountId)
+            .orElse(null))) {
+      throw new org.springframework.web.server.ResponseStatusException(
+          org.springframework.http.HttpStatus.FORBIDDEN, "Customer does not own this appointment");
+    }
   }
 
   private void ensurePublicChangeAllowed(AppointmentResponseDTO appointment, boolean reschedule) {

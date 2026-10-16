@@ -17,6 +17,16 @@ export async function login(payload: LoginRequest) {
   return data
 }
 
+export async function customerLogin(payload: LoginRequest) {
+  const { data } = await httpClient.post<LoginResponse>('/auth/customer/login', payload)
+  return data
+}
+
+export async function registerCustomer(payload: Pick<LoginRequest, 'email' | 'password'>) {
+  const { data } = await httpClient.post<LoginResponse>('/auth/customer/register', payload)
+  return data
+}
+
 export async function register(payload: RegisterRequest) {
   const { data } = await httpClient.post<LoginResponse>('/auth/register', payload)
   return data

@@ -12,7 +12,11 @@ public class AppointmentPayment {
   @Column(nullable = false, unique = true) private UUID appointmentId;
   @Column(nullable = false, precision = 12, scale = 2) private BigDecimal amountDue = BigDecimal.ZERO;
   @Column(nullable = false, precision = 12, scale = 2) private BigDecimal amountPaid = BigDecimal.ZERO;
+  @Column(nullable = false, precision = 12, scale = 2) private BigDecimal amountRequired = BigDecimal.ZERO;
+  @Column(nullable = false, precision = 12, scale = 2) private BigDecimal amountRefunded = BigDecimal.ZERO;
   @Column(nullable = false, length = 3) private String currency = "USD";
+  @Column(nullable = false) private String paymentMode = "PAY_LATER";
+  @Column(nullable = false) private String refundStatus = "NOT_REFUNDED";
   private String paymentMethod;
   private String stripeCheckoutSessionId;
   private String stripePaymentIntentId;
@@ -30,8 +34,16 @@ public class AppointmentPayment {
   public void setAmountDue(BigDecimal value) { amountDue = value; }
   public BigDecimal getAmountPaid() { return amountPaid; }
   public void setAmountPaid(BigDecimal value) { amountPaid = value; }
+  public BigDecimal getAmountRequired() { return amountRequired; }
+  public void setAmountRequired(BigDecimal value) { amountRequired = value; }
+  public BigDecimal getAmountRefunded() { return amountRefunded; }
+  public void setAmountRefunded(BigDecimal value) { amountRefunded = value; }
   public String getCurrency() { return currency; }
   public void setCurrency(String value) { currency = value; }
+  public String getPaymentMode() { return paymentMode; }
+  public void setPaymentMode(String value) { paymentMode = value; }
+  public String getRefundStatus() { return refundStatus; }
+  public void setRefundStatus(String value) { refundStatus = value; }
   public String getPaymentMethod() { return paymentMethod; }
   public void setPaymentMethod(String value) { paymentMethod = value; }
   public String getStripeCheckoutSessionId() { return stripeCheckoutSessionId; }

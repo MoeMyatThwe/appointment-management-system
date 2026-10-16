@@ -213,11 +213,11 @@ export function AppointmentsPage() {
     queryFn: () => fetchPublicSlots(tenantId, rescheduleDraft!.date, rescheduleDraft!.serviceId, rescheduleDraft!.staffId, timezone),
     enabled: Boolean(tenantId && rescheduleDraft?.date && rescheduleDraft.serviceId && rescheduleDraft.staffId),
   })
-  const lookupEnabled = showCreateModal || Boolean(rescheduleDraft)
-  const customersQuery = useQuery({ queryKey: ['customers', 'lookup'], queryFn: () => fetchCustomersPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }), enabled: lookupEnabled })
-  const staffQuery = useQuery({ queryKey: ['staff', 'lookup'], queryFn: () => fetchStaffPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }), enabled: lookupEnabled })
-  const servicesQuery = useQuery({ queryKey: ['services', 'lookup'], queryFn: () => fetchServicesPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }), enabled: lookupEnabled })
-  const resourcesQuery = useQuery({ queryKey: ['resources', 'lookup'], queryFn: () => fetchResourcesPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc', active: 'true' }), enabled: lookupEnabled })
+  const lookupEnabled = Boolean(tenantId)
+  const customersQuery = useQuery({ queryKey: ['customers', 'lookup', tenantId], queryFn: () => fetchCustomersPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }), enabled: lookupEnabled })
+  const staffQuery = useQuery({ queryKey: ['staff', 'lookup', tenantId], queryFn: () => fetchStaffPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }), enabled: lookupEnabled })
+  const servicesQuery = useQuery({ queryKey: ['services', 'lookup', tenantId], queryFn: () => fetchServicesPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc' }), enabled: lookupEnabled })
+  const resourcesQuery = useQuery({ queryKey: ['resources', 'lookup', tenantId], queryFn: () => fetchResourcesPage({ page: 0, size: 100, sortBy: 'name', direction: 'asc', active: 'true' }), enabled: lookupEnabled })
 
   const createMutation = useMutation({
     mutationFn: createAppointment,
@@ -573,7 +573,10 @@ export function AppointmentsPage() {
               </div>
             </div>
             <p className="mt-3 text-sm text-slate-600">{services.find((service) => service.id === appointment.serviceId)?.name ?? 'Service not found'} · {staff.find((member) => member.id === appointment.staffId)?.name ?? 'Staff member not found'}</p>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex items-center gap-2">
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${appointment.paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                Payment: {(appointment.paymentStatus ?? 'UNPAID').replace('_', ' ')}
+              </span>
               <button
                 className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 type="button"
@@ -606,7 +609,7 @@ export function AppointmentsPage() {
                 type="button"
                 onClick={() => { setPaymentAppointmentId(appointment.id); setPaymentAmount('') }}
               >
-                <><FiCreditCard aria-hidden="true" />Payment</>
+                <><FiCreditCard aria-hidden="true" />{appointment.paymentStatus === 'PAID' ? 'View payment' : 'Payment'}</>
               </button>
             </div>
             {statusMutation.isError ? <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">That status change is not allowed.</p> : null}

@@ -17,6 +17,7 @@ export interface Appointment {
   startTime: string
   endTime: string
   status: AppointmentStatus
+  paymentStatus?: 'UNPAID' | 'PENDING' | 'FAILED' | 'PARTIALLY_PAID' | 'PAID' | 'REFUNDED'
   notes?: string
 }
 

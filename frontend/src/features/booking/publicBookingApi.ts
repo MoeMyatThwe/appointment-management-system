@@ -21,6 +21,20 @@ export async function fetchPublicSlots(tenantId: string, date: string, serviceId
   return data
 }
 
+export async function fetchPublicAvailableDates(
+  tenantId: string,
+  from: string,
+  to: string,
+  serviceId: string,
+  staffId: string,
+  timezone: string,
+) {
+  const { data } = await httpClient.get<string[]>(`/public/booking/${tenantId}/available-dates`, {
+    params: { from, to, serviceId, staffId, timezone },
+  })
+  return data
+}
+
 export async function submitPublicBooking(tenantId: string, input: {
   serviceId: string; staffId: string; startTime: string; endTime: string
   customerName: string; customerEmail: string; customerPhone?: string; notes?: string

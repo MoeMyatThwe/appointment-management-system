@@ -40,7 +40,7 @@ export function ContextualHelp({ title, summary, points }: ContextualHelpProps) 
             if (event.target === event.currentTarget) setIsOpen(false)
           }}
         >
-          <section className="w-full max-w-lg rounded-2xl border border-slate-600 bg-[#1b2740] p-6 text-slate-100 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="contextual-help-title">
+          <section className="max-h-[calc(100vh-2.5rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-600 bg-[#1b2740] p-6 text-slate-100 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="contextual-help-title">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-indigo-300">Page guide</p>

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { clearSession, getAccessToken, getRefreshToken, setSession, setTimezone } from './authStorage'
 import type { CurrentUser } from './types'
-import { fetchCurrentUser, login as loginRequest, logout as logoutRequest } from './authApi'
+import { customerLogin, fetchCurrentUser, login as loginRequest, logout as logoutRequest, registerCustomer } from './authApi'
 import { getApiErrorMessage } from '../../shared/api/apiError'
 
 interface LoginInput {
@@ -15,7 +15,8 @@ interface AuthStore {
   isLoading: boolean
   error: string | null
   hydrate: () => Promise<void>
-  login: (input: LoginInput) => Promise<void>
+  login: (input: LoginInput, customer?: boolean) => Promise<void>
+  registerCustomer: (input: LoginInput) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -41,10 +42,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
       set({ user: null, isAuthenticated: false, isLoading: false })
     }
   },
-  login: async (input) => {
+  login: async (input, customer = false) => {
     set({ isLoading: true, error: null })
     try {
-      const session = await loginRequest(input)
+      const session = await (customer ? customerLogin(input) : loginRequest(input))
       setSession(session.accessToken, session.tenantId, session.refreshToken)
       const user = await fetchCurrentUser()
       setTimezone(user.timezone)
@@ -56,6 +57,25 @@ export const useAuthStore = create<AuthStore>((set) => ({
         isAuthenticated: false,
         isLoading: false,
         error: getApiErrorMessage(error, 'login'),
+      })
+      throw error
+    }
+  },
+  registerCustomer: async (input) => {
+    set({ isLoading: true, error: null })
+    try {
+      const session = await registerCustomer(input)
+      setSession(session.accessToken, session.tenantId, session.refreshToken)
+      const user = await fetchCurrentUser()
+      setTimezone(user.timezone)
+      set({ user, isAuthenticated: true, isLoading: false })
+    } catch (error) {
+      clearSession()
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: getApiErrorMessage(error, 'register'),
       })
       throw error
     }

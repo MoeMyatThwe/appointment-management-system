@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 public interface ServiceOfferingRepository extends JpaRepository<ServiceOffering, UUID> {
   long countByTenantId(String tenantId);
   List<ServiceOffering> findAllByTenantIdOrderByName(String tenantId);
+  @Query("select distinct s.tenantId from ServiceOffering s order by s.tenantId")
+  List<String> findDistinctTenantIds();
   @Query("""
       select s from ServiceOffering s
       where s.tenantId = :tenant

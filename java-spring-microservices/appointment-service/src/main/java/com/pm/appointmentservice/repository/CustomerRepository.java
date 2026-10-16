@@ -20,4 +20,5 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
   Page<Customer> search(String tenant, String search, String group, String tag, Pageable pageable);
   Optional<Customer> findByIdAndTenantId(UUID id, String tenantId);
   Optional<Customer> findByTenantIdAndEmailIgnoreCase(String tenantId, String email);
+  Optional<Customer> findByTenantIdAndCustomerAccountId(String tenantId, UUID customerAccountId);
 }

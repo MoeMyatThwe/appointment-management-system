@@ -26,3 +26,12 @@ export async function createStripeCheckout(appointmentId: string) {
   const { data } = await httpClient.post<{ checkoutUrl: string }>(`/api/appointments/${appointmentId}/payment/checkout`)
   return data
 }
+
+export async function confirmStripePayment(appointmentId: string, sessionId: string) {
+  const { data } = await httpClient.post<AppointmentPayment>(
+    `/api/appointments/${appointmentId}/payment/confirm`,
+    undefined,
+    { params: { sessionId } },
+  )
+  return data
+}

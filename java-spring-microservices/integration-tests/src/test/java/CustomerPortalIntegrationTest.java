@@ -55,6 +55,33 @@ public class CustomerPortalIntegrationTest {
         .then().statusCode(403);
   }
 
+  @Test
+  void shouldApplyCustomerPortalFiltersAndReturnServiceLabels() {
+    String businessToken = IntegrationTestSupport.token();
+    String customerToken = IntegrationTestSupport.customerLogin()
+        .jsonPath().getString("accessToken");
+    String tenantId = IntegrationTestSupport.tenantId();
+    String appointmentId = createAppointment(businessToken, customerToken, tenantId);
+
+    given().auth().oauth2(customerToken)
+        .queryParam("page", 0)
+        .queryParam("size", 1)
+        .queryParam("status", "PENDING")
+        .queryParam("paymentStatus", "UNPAID")
+        .queryParam("dateFilter", "UPCOMING")
+        .when().get("/api/customer/appointments")
+        .then().statusCode(200)
+        .body("size", equalTo(1))
+        .body("content[0].id", equalTo(appointmentId))
+        .body("content[0].serviceName", notNullValue())
+        .body("content[0].staffName", notNullValue());
+
+    given().auth().oauth2(customerToken)
+        .queryParam("paymentStatus", "NOT_A_PAYMENT_STATUS")
+        .when().get("/api/customer/appointments")
+        .then().statusCode(400);
+  }
+
   private String createAppointment(String businessToken, String customerToken, String tenantId) {
     String serviceId = given().auth().oauth2(businessToken)
         .when().get("/api/services")

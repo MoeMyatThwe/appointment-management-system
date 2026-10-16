@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
-import { clearSession, getRefreshToken, getTimezone, setSession } from '../../features/auth/authStorage'
+import { clearSession, getAccessToken, getRefreshToken, getTimezone, setSession } from '../../features/auth/authStorage'
 
 const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
 const API_BASE_URL = configuredBaseUrl && configuredBaseUrl !== '/' ? configuredBaseUrl.replace(/\/$/, '') : '/'
@@ -40,7 +40,7 @@ function refreshSession(refreshToken: string) {
 }
 
 httpClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken')
+  const token = getAccessToken()
   const tenantId = localStorage.getItem('tenantId')
 
   if (token) {

@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../auth/authStore'
 import { ContextualHelp } from '../../../shared/components/ContextualHelp'
 import { getPageGuide } from '../../../shared/components/pageGuides'
@@ -6,7 +6,16 @@ import { getPageGuide } from '../../../shared/components/pageGuides'
 export function PlatformHeader() {
   const logout = useAuthStore((state) => state.logout)
   const location = useLocation()
+  const navigate = useNavigate()
   const pageGuide = getPageGuide(location.pathname)
+
+  async function handleLogout() {
+    try {
+      await logout()
+    } finally {
+      navigate('/', { replace: true })
+    }
+  }
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/85 backdrop-blur-md">
@@ -49,7 +58,7 @@ export function PlatformHeader() {
         <button
           className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800"
           type="button"
-          onClick={() => void logout()}
+          onClick={() => void handleLogout()}
         >
           Log out
         </button>

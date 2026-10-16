@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuthStore } from '../features/auth/authStore'
 import {
@@ -30,6 +30,7 @@ export function AppLayout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('schedora-sidebar-collapsed') === 'true')
   const [tourRequest, setTourRequest] = useState(0)
   const location = useLocation()
+  const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const canManageOperations = user?.role === 'TENANT_ADMIN' || user?.role === 'MANAGER'
@@ -40,6 +41,14 @@ export function AppLayout() {
   useEffect(() => {
     localStorage.setItem('schedora-sidebar-collapsed', String(isSidebarCollapsed))
   }, [isSidebarCollapsed])
+
+  async function handleLogout() {
+    try {
+      await logout()
+    } finally {
+      navigate('/', { replace: true })
+    }
+  }
 
   return (
     <div className={`min-h-screen overflow-x-hidden bg-[#0f172a] lg:grid lg:h-screen lg:overflow-hidden ${isSidebarCollapsed ? 'lg:grid-cols-[88px_minmax(0,1fr)]' : 'lg:grid-cols-[280px_minmax(0,1fr)]'}`}>
@@ -85,7 +94,7 @@ export function AppLayout() {
           <FiHelpCircle aria-hidden="true" size={16} />
           {!isSidebarCollapsed ? 'Help & guide' : null}
         </button>
-        <button title={isSidebarCollapsed ? 'Logout' : undefined} className={`mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-600 px-3 py-2.5 text-sm font-semibold text-slate-100 transition hover:bg-slate-700 ${isSidebarCollapsed ? 'px-2' : ''}`} type="button" onClick={() => void logout()}>
+        <button title={isSidebarCollapsed ? 'Logout' : undefined} className={`mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-600 px-3 py-2.5 text-sm font-semibold text-slate-100 transition hover:bg-slate-700 ${isSidebarCollapsed ? 'px-2' : ''}`} type="button" onClick={() => void handleLogout()}>
           <FiLogOut aria-hidden="true" size={16} />{!isSidebarCollapsed ? 'Logout' : null}
         </button>
       </aside>

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { formatDateTimeInTimezone } from '../../../shared/utils/dateTime'
 import { useAuthStore } from '../../auth/authStore'
 import { cancelCustomerAppointment, createCustomerCheckout, fetchCustomerAppointments, fetchPublicBusinesses } from '../customerPortalApi'
@@ -26,6 +26,14 @@ export function CustomerPortalPage() {
     queryFn: () => fetchCustomerAppointments(filters),
   })
   const businesses = useQuery({ queryKey: ['public-businesses'], queryFn: fetchPublicBusinesses })
+
+  async function handleLogout() {
+    try {
+      await logout()
+    } finally {
+      navigate('/', { replace: true })
+    }
+  }
 
   async function cancel(id: string) {
     if (!window.confirm('Cancel this appointment? Any eligible refund will be started automatically.')) return
@@ -63,10 +71,12 @@ export function CustomerPortalPage() {
   return <main className="min-h-screen bg-slate-50">
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-        <button className="text-lg font-bold tracking-tight text-slate-900" type="button" onClick={() => navigate('/customer-portal')}>Schedora</button>
-        <nav className="flex items-center gap-3" aria-label="Customer navigation">
+        <Link className="text-lg font-bold tracking-tight text-slate-900" to="/">Schedora</Link>
+        <nav className="flex flex-wrap items-center justify-end gap-2" aria-label="Customer navigation">
+          <a className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50" href="#businesses">Find a business</a>
+          <a className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50" href="#appointments">My appointments</a>
           <span className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700">Customer portal</span>
-          <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button" onClick={() => void logout()}>Sign out</button>
+          <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button" onClick={() => void handleLogout()}>Sign out</button>
         </nav>
       </div>
     </header>
@@ -77,7 +87,7 @@ export function CustomerPortalPage() {
       <span className="text-sm text-slate-500">Choose a business below to book</span>
     </div>
     {actionError ? <p className="mt-5 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{actionError}</p> : null}
-    <section className="mt-8">
+    <section className="mt-8 scroll-mt-6" id="businesses">
       <h2 className="text-xl font-semibold text-slate-900">Businesses accepting online bookings</h2>
       {businesses.isLoading ? <p className="mt-3 text-sm text-slate-500">Loading businesses...</p> : null}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -103,7 +113,7 @@ export function CustomerPortalPage() {
         </select>
       </div>
     </section>
-    <div className="mt-8 grid gap-4">
+    <div className="mt-8 grid scroll-mt-6 gap-4" id="appointments">
       {appointments.isLoading ? <p>Loading appointments...</p> : null}
       {appointments.data?.content.map((appointment) => <article className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200" key={appointment.id}>
         <div className="flex flex-wrap items-start justify-between gap-3">

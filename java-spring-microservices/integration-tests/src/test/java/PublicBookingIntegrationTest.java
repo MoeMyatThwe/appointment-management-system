@@ -1,5 +1,6 @@
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.hasItem;
 
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeAll;
@@ -23,6 +24,18 @@ public class PublicBookingIntegrationTest {
         .body("businessName", notNullValue())
         .body("services", notNullValue())
         .body("staff", notNullValue());
+  }
+
+  @Test
+  void shouldListBusinessesWithOnlineBookingEnabled() {
+    given()
+        .when()
+        .get("/public/booking/businesses")
+        .then()
+        .statusCode(200)
+        .body("tenantId", hasItem("demo-tenant"))
+        .body("name", hasItem("Harbor Wellness Spa"))
+        .body("[0].serviceCount", org.hamcrest.Matchers.greaterThan(0));
   }
 
   @Test
